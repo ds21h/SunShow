@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">SunShow</string>
+    <string name="lb_name">Name:</string>
+    <string name="hnt_location">Location name</string>
+    <string name="btn_OK">OK</string>
+    <string name="lb_longitude">Long:</string>
+    <string name="lb_lattitude">Latt:</string>
+    <string name="lb_timezone">Timezone:</string>
+    <string name="btn_save">Save</string>
+    <string name="lb_rise">Rise</string>
+    <string name="lb_set">Set</string>
+    <string name="sel_current_location">Current location</string>
+    <string name="sel_choose_map">Choose on map</string>
+    <string name="title_activity_lokatie_maps">Select location</string>
+    <string name="btn_select">Select</string>
+    <string name="msg_permissions">Insufficient permissions granted!</string>
+    <string name="msg_noname">No name supplied!</string>
+    <string name="dia_location_exists">Location exists</string>
+    <string name="dia_location_replace">Replace location **Loc**?</string>
+    <string name="btn_cancel">Cancel</string>
+</resources>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ZonShow</string>
+    <string name="lb_name">Naam:</string>
+    <string name="hnt_location">Lokatienaam</string>
+    <string name="btn_OK">OK</string>
+    <string name="lb_longitude">Lengte:</string>
+    <string name="lb_lattitude">Breedte:</string>
+    <string name="lb_timezone">Tijdzone:</string>
+    <string name="btn_save">Bewaar</string>
+    <string name="lb_rise">Opkomst</string>
+    <string name="lb_set">Ondergang</string>
+    <string name="sel_current_location">Huidige lokatie</string>
+    <string name="sel_choose_map">Kies op kaart</string>
+    <string name="title_activity_lokatie_maps">Kies lokatie</string>
+    <string name="btn_select">Selecteer</string>
+    <string name="msg_permissions">"Onvoldoende permissies! "</string>
+    <string name="msg_noname">Geen naam opgegeven!</string>
+    <string name="dia_location_exists">Lokatie bestaat</string>
+    <string name="dia_location_replace">Locatie **Loc** vervangen?</string>
+    <string name="btn_cancel">Annuleer</string>
+</resources>
