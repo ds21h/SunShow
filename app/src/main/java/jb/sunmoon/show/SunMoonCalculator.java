@@ -5,6 +5,12 @@ package jb.sunmoon.show;
 /**
  * A very simple yet accurate Sun/Moon calculator without using JPARSEC library.
  * @author T. Alonso Albi - OAN (Spain), email t.alonso@oan.es
+ * @version February 23, 2021 (option to return rise/set times for today in LT/UT)
+ * @version February 9, 2021 (little improve to nutation and TT-UT1)
+ * @version February 2, 2021 (fix and improve to nutation, added normalizeRadians to mean elements)
+ * @version January 19, 2021 (added TT-UT in ancient times, mean elements up to t^7 in getMoon to improve accuracy in ancient times)
+ * @version January 11, 2021 (fixed an error with Julian day computation, refraction iteration improved)
+ * @version November 10, 2020 (better refraction correction, still with Bennet's formula. Complete code including accurate lunar position and topocentric correction, lunar angles and phases, equinoxes/solstices)
  * @version August 7, 2020 (forgot to add equation of equinoxes to lst, affects 1s at most to rise/set/transit times)
  * @version July 1, 2020 (improved aberration in getSun, illumination phase for planets fixed, refraction with ambient P/T and extensible to radio wavelengths)
  * @version June 15, 2020 (more terms for Sun, equinoxes/solstices methods revised to improve accuracy and performance)
@@ -80,6 +86,19 @@ public class SunMoonCalculator {
         HORIZON_34arcmin
     };
 
+    /** Possible options to return the rise/set/transit times. */
+    public static enum TWILIGHT_MODE {
+        /** Closest events. */
+        CLOSEST,
+        /** Compute events for the current date in UT. */
+        TODAY_UT,
+        /** Compute events for the current date in LT. */
+        TODAY_LT;
+
+        /** Time zone for option {@linkplain #TODAY_LT}, LT-UT, hours. */
+        public static int timeZone = 0;
+    }
+
     /** The set of events to calculate (rise/set/transit events). */
     public static enum EVENT {
         /** Rise. */
@@ -130,15 +149,15 @@ public class SunMoonCalculator {
     }
 
     /** Input values and nutation/obliquity parameters only calculated once. */
+    private double obsLon = 0, obsLat = 0, obsAlt = 0;
+    private TWILIGHT twilight = TWILIGHT.HORIZON_34arcmin;
+    private TWILIGHT_MODE twilightMode = TWILIGHT_MODE.CLOSEST;
     protected double jd_UT = 0;
     protected double t = 0;
-    private double obsLon = 0, obsLat = 0;
-    private double TTminusUT = 0;
-    private TWILIGHT twilight = TWILIGHT.HORIZON_34arcmin;
-    private double nutLon = 0, nutObl = 0;
+    protected double nutLon = 0, nutObl = 0;
     protected double meanObliquity = 0;
-
-    private double lst = 0;
+    protected double TTminusUT = 0;
+    protected double lst = 0;
 
     /**
      * Class to hold the results of ephemerides.
@@ -187,15 +206,18 @@ public class SunMoonCalculator {
      * @param s Second.
      * @param obsLon Longitude for the observer.
      * @param obsLat Latitude for the observer.
-     * @throws Exception If the date does not exists.
+     * @param obsAlt Altitude of the observer in m.
      */
     public SunMoonCalculator(int year, int month, int day, int h, int m, int s,
-                             double obsLon, double obsLat) throws Exception {
+                             double obsLon, double obsLat, int obsAlt) {
         double jd = toJulianDay(year, month, day, h, m, s);
 
-        TTminusUT = 0;
-        if (year > -600 && year < 2200) {
-            double x = year + (month - 1 + day / 30.0) / 12.0;
+        double ndot = -25.858, c0 = 0.91072 * (ndot + 26.0) ;
+        if (year < -500 || year >= 2200) {
+            double u = (jd - 2385800.5) / 36525.0; // centuries since J1820
+            TTminusUT = -20 + 32.0 * u * u;
+        } else {
+            double x = year + (month - 1 + (day - 1) / 30.0) / 12.0;
             double x2 = x * x, x3 = x2 * x, x4 = x3 * x;
             if (year < 1600) {
                 TTminusUT = 10535.328003 - 9.9952386275 * x + 0.00306730763 * x2 - 7.7634069836E-6 * x3 + 3.1331045394E-9 * x4 +
@@ -204,9 +226,14 @@ public class SunMoonCalculator {
                 TTminusUT = -1027175.34776 + 2523.2566254 * x - 1.8856868491 * x2 + 5.8692462279E-5 * x3 + 3.3379295816E-7 * x4 +
                         1.7758961671E-10 * x2 * x3 - 2.7889902806E-13 * x2 * x4 + 1.0224295822E-16 * x3 * x4 - 1.2528102371E-20 * x4 * x4;
             }
+            c0 = 0.91072 * (ndot + 25.858) ;
         }
+        double c = -c0 * Math.pow((jd - 2435109.0) / 36525.0, 2);
+        if (year < 1955 || year > 2005) TTminusUT += c;
+
         this.obsLon = obsLon;
         this.obsLat = obsLat;
+        this.obsAlt = obsAlt;
         setUTDate(jd);
     }
 
@@ -216,6 +243,22 @@ public class SunMoonCalculator {
      */
     public void setTwilight(TWILIGHT t) {
         this.twilight = t;
+    }
+
+    /**
+     * Sets the kind of rise/set times to return. Default is closest events.
+     * @param t The Twilight mode.
+     */
+    public void setTwilightMode(TWILIGHT_MODE t) {
+        this.twilightMode = t;
+    }
+
+    /**
+     * Sets the time zone to use to return rise/set times for today in local time.
+     * @param t The time zone (LT-UT in hours) for the twilight mode {@linkplain TWILIGHT_MODE#TODAY_LT}.
+     */
+    public void setTwilightModeTimeZone(int t) {
+        TWILIGHT_MODE.timeZone = t;
     }
 
     /**
@@ -232,8 +275,8 @@ public class SunMoonCalculator {
         // Compute nutation
         double M1 = (124.90 - 1934.134 * t + 0.002063 * t * t) * DEG_TO_RAD;
         double M2 = (201.11 + 72001.5377 * t + 0.00057 * t * t) * DEG_TO_RAD;
-        nutLon = (-0.0047785 * Math.sin(M1) - 0.0003667 * Math.sin(M2)) * DEG_TO_RAD;
-        nutObl = (0.002558 * Math.cos(M1) - 0.00015339 * Math.cos(M2)) * DEG_TO_RAD;
+        nutLon = (-(17.2026 + 0.01737 * t) * Math.sin(M1) + (-1.32012 + 0.00013 * t) * Math.sin(M2) + .2088 * Math.sin(2 * M1)) * ARCSEC_TO_RAD;
+        nutObl = ((9.2088 + .00091 * t) * Math.cos(M1) + (0.552204 - 0.00029 * t) * Math.cos(M2) - .0904 * Math.cos(2 * M1)) * ARCSEC_TO_RAD;
 
         // Compute mean obliquity
         double t2 = this.t / 100.0;
@@ -381,26 +424,45 @@ public class SunMoonCalculator {
     }
 
     protected double[] getMoon() {
-        // MOON PARAMETERS (Formulae from "Calendrical Calculations")
-        double phase = normalizeRadians((297.8502042 + 445267.1115168 * t - 0.00163 * t * t + t * t * t / 538841 - t * t * t * t / 65194000) * DEG_TO_RAD);
+        // These expansions up to t^7 for the mean elements are taken from S. L. Moshier
+        /* Mean elongation of moon = D */
+        double x = (1.6029616009939659e+09 * t + 1.0722612202445078e+06);
+        x += (((((-3.207663637426e-013 * t + 2.555243317839e-011) * t + 2.560078201452e-009) * t - 3.702060118571e-005) * t + 6.9492746836058421e-03) * t /* D, t^3 */
+                - 6.7352202374457519e+00) * t * t; /* D, t^2 */
+        double phase = normalizeRadians(ARCSEC_TO_RAD * x);
 
-        // Anomalistic phase
-        double anomaly = (134.9634114 + 477198.8676313 * t + .008997 * t * t + t * t * t / 69699 - t * t * t * t / 14712000);
-        anomaly = anomaly * DEG_TO_RAD;
+        /* Mean distance of moon from its ascending node = F */
+        x = (1.7395272628437717e+09 * t + 3.3577951412884740e+05);
+        x += (((((4.474984866301e-013 * t + 4.189032191814e-011) * t - 2.790392351314e-009) * t - 2.165750777942e-006) * t - 7.5311878482337989e-04) * t /* F, t^3 */
+                - 1.3117809789650071e+01) * t * t; /* F, t^2 */
+        double node = normalizeRadians(ARCSEC_TO_RAD * x);
 
-        // Degrees from ascending node
-        double node = (93.2720993 + 483202.0175273 * t - 0.0034029 * t * t - t * t * t / 3526000 + t * t * t * t / 863310000);
-        node = node * DEG_TO_RAD;
+        /* Mean anomaly of sun = l' (J. Laskar) */
+        x = (1.2959658102304320e+08 * t + 1.2871027407441526e+06);
+        x += ((((((((1.62e-20 * t - 1.0390e-17) * t - 3.83508e-15) * t + 4.237343e-13) * t + 8.8555011e-11) * t - 4.77258489e-8) * t - 1.1297037031e-5) * t + 8.7473717367324703e-05) * t - 5.5281306421783094e-01) * t * t;
+        double sanomaly = normalizeRadians(ARCSEC_TO_RAD * x);
 
-        double E = 1.0 - (.002495 + 7.52E-06 * (t + 1.0)) * (t + 1.0);
+        /* Mean anomaly of moon = l */
+        x = (1.7179159228846793e+09 * t + 4.8586817465825332e+05);
+        x += (((((-1.755312760154e-012 * t + 3.452144225877e-011) * t - 2.506365935364e-008) * t - 2.536291235258e-004) * t + 5.2099641302735818e-02) * t /* l, t^3 */
+                + 3.1501359071894147e+01) * t * t; /* l, t^2 */
+        double anomaly = normalizeRadians(ARCSEC_TO_RAD * x);
 
-        // Solar anomaly
-        double sanomaly = (357.5291 + 35999.0503 * t - .0001559 * t * t - 4.8E-07 * t * t * t) * DEG_TO_RAD;
+        /* Mean longitude of moon, re mean ecliptic and equinox of date = L */
+        x = (1.7325643720442266e+09 * t + 7.8593980921052420e+05);
+        x += (((((7.200592540556e-014 * t + 2.235210987108e-010) * t - 1.024222633731e-008) * t - 6.073960534117e-005) * t + 6.9017248528380490e-03) * t /* L, t^3 */
+                - 5.6550460027471399e+00) * t * t; /* L, t^2 */
+        double l = normalizeRadians(ARCSEC_TO_RAD * x) * RAD_TO_DEG;
 
         // Now longitude, with the three main correcting terms of evection,
         // variation, and equation of year, plus other terms (error<0.01 deg)
-        // P. Duffet's MOON program taken as reference
-        double l = (218.31664563 + 481267.8811958 * t - .00146639 * t * t + t * t * t / 540135.03 - t * t * t * t / 65193770.4);
+        // P. Duffet's MOON program taken as reference for the periodic terms
+        double E = 1.0 - (.002495 + 7.52E-06 * (t + 1.0)) * (t + 1.0), E2 = E * E;
+        double td = t + 1, td2 = t * t;
+        double M6 = td * JULIAN_DAYS_PER_CENTURY * 360.0 / 6.798363307E3;
+        double NA = normalizeRadians((2.59183275E2 - M6 + (2.078E-3 + 2.2E-6 * td) * td2) * DEG_TO_RAD);
+        double C = NA + DEG_TO_RAD * (275.05 - 2.3 * td);
+
         l += 6.28875 * Math.sin(anomaly) + 1.274018 * Math.sin(2 * phase - anomaly) + .658309 * Math.sin(2 * phase);
         l +=  0.213616 * Math.sin(2 * anomaly) - E * .185596 * Math.sin(sanomaly) - 0.114336 * Math.sin(2 * node);
         l += .058793 * Math.sin(2 * phase - 2 * anomaly) + .057212 * E * Math.sin(2 * phase - anomaly - sanomaly) + .05332 * Math.sin(2 * phase + anomaly);
@@ -415,6 +477,15 @@ public class SunMoonCalculator {
         l += -E * E * 2.079E-3 * Math.sin(2*sanomaly) + E * E * 2.059E-3 * Math.sin(2*(phase-sanomaly)-anomaly);
         l += -1.773E-3 * Math.sin(anomaly+2*(phase-node)) - 1.595E-3 * Math.sin(2*(node+phase));
         l += E * 1.22E-3 * Math.sin(4*phase-sanomaly-anomaly) - 1.11E-3 * Math.sin(2*(anomaly+node));
+        l += 8.92E-4 * Math.sin(anomaly - 3 * phase) - E * 8.11E-4 * Math.sin(sanomaly + anomaly + 2 * phase);
+        l += E * 7.61E-4 * Math.sin(4 * phase - sanomaly - 2 * anomaly);
+        l += E2 * 7.04E-4 * Math.sin(anomaly - 2 * (sanomaly + phase));
+        l += E * 6.93E-4 * Math.sin(sanomaly - 2 * (anomaly - phase));
+        l += E * 5.98E-4 * Math.sin(2 * (phase - node) - sanomaly);
+        l += 5.5E-4 * Math.sin(anomaly + 4 * phase) + 5.38E-4 * Math.sin(4 * anomaly);
+        l += E * 5.21E-4 * Math.sin(4 * phase - sanomaly) + 4.86E-4 * Math.sin(2 * anomaly - phase);
+        l += E2 * 7.17E-4 * Math.sin(anomaly - 2 * sanomaly);
+
         double longitude = l * DEG_TO_RAD;
 
         double Psin = 29.530588853;
@@ -427,15 +498,25 @@ public class SunMoonCalculator {
         }
 
         // Now Moon parallax
-        double parallax = .950724 + .051818 * Math.cos(anomaly) + .009531 * Math.cos(2 * phase - anomaly);
-        parallax += .007843 * Math.cos(2 * phase) + .002824 * Math.cos(2 * anomaly);
-        parallax += 0.000857 * Math.cos(2 * phase + anomaly) + E * .000533 * Math.cos(2 * phase - sanomaly);
-        parallax += E * .000401 * Math.cos(2 * phase - anomaly - sanomaly) + E * .00032 * Math.cos(anomaly - sanomaly) - .000271 * Math.cos(phase);
-        parallax += -E * .000264 * Math.cos(sanomaly + anomaly) - .000198 * Math.cos(2 * node - anomaly);
-        parallax += 1.73E-4 * Math.cos(3 * anomaly) + 1.67E-4 * Math.cos(4*phase-anomaly);
+        double p = .950724 + .051818 * Math.cos(anomaly) + .009531 * Math.cos(2 * phase - anomaly);
+        p += .007843 * Math.cos(2 * phase) + .002824 * Math.cos(2 * anomaly);
+        p += 0.000857 * Math.cos(2 * phase + anomaly) + E * .000533 * Math.cos(2 * phase - sanomaly);
+        p += E * .000401 * Math.cos(2 * phase - anomaly - sanomaly) + E * .00032 * Math.cos(anomaly - sanomaly) - .000271 * Math.cos(phase);
+        p += -E * .000264 * Math.cos(sanomaly + anomaly) - .000198 * Math.cos(2 * node - anomaly);
+        p += 1.73E-4 * Math.cos(3 * anomaly) + 1.67E-4 * Math.cos(4*phase-anomaly);
+        p += -E * 1.11E-4 * Math.cos(sanomaly) + 1.03E-4 * Math.cos(4 * phase - 2 * anomaly);
+        p += -8.4E-5 * Math.cos(2 * anomaly - 2 * phase) - E * 8.3E-5 * Math.cos(2 * phase + sanomaly);
+        p += 7.9E-5 * Math.cos(2 * phase + 2 * anomaly) + 7.2E-5 * Math.cos(4 * phase);
+        p += E * 6.4E-5 * Math.cos(2 * phase - sanomaly + anomaly)
+                - E * 6.3E-5 * Math.cos(2 * phase + sanomaly - anomaly);
+        p += E * 4.1E-5 * Math.cos(sanomaly + phase) + E * 3.5E-5 * Math.cos(2 * anomaly - sanomaly);
+        p += -3.3E-5 * Math.cos(3 * anomaly - 2 * phase) - 3E-5 * Math.cos(anomaly + phase);
+        p += -2.9E-5 * Math.cos(2 * (node - phase)) - E * 2.9E-5 * Math.cos(2 * anomaly + sanomaly);
+        p += E2 * 2.6E-5 * Math.cos(2 * (phase - sanomaly)) - 2.3E-5 * Math.cos(2 * (node - phase) + anomaly);
+        p += E * 1.9E-5 * Math.cos(4 * phase - sanomaly - anomaly);
 
         // So Moon distance in Earth radii is, more or less,
-        double distance = 1.0 / Math.sin(parallax * DEG_TO_RAD);
+        double distance = 1.0 / Math.sin(p * DEG_TO_RAD);
 
         // Ecliptic latitude with nodal phase (error<0.01 deg)
         l = 5.128189 * Math.sin(node) + 0.280606 * Math.sin(node + anomaly) + 0.277693 * Math.sin(anomaly - node);
@@ -447,7 +528,27 @@ public class SunMoonCalculator {
         l += E * 2.472E-3 * Math.sin(2 * phase + node - sanomaly - anomaly);
         l += E * 2.222E-3 * Math.sin(2 * phase + node - sanomaly);
         l += E * 2.072E-3 * Math.sin(2 * phase - node - sanomaly - anomaly);
-        double latitude = l * DEG_TO_RAD;
+        l += E * 1.877E-3 * Math.sin(node - sanomaly + anomaly) + 1.828E-3 * Math.sin(4 * phase - node - anomaly);
+        l += -E * 1.803E-3 * Math.sin(node + sanomaly) - 1.75E-3 * Math.sin(3 * node);
+        l += E * 1.57E-3 * Math.sin(anomaly - sanomaly - node) - 1.487E-3 * Math.sin(node + phase);
+        l += -E * 1.481E-3 * Math.sin(node + sanomaly + anomaly) + E * 1.417E-3 * Math.sin(node - sanomaly - anomaly);
+        l += E * 1.35E-3 * Math.sin(node - sanomaly) + 1.33E-3 * Math.sin(node - phase);
+        l += 1.106E-3 * Math.sin(node + 3 * anomaly) + 1.02E-3 * Math.sin(4 * phase - node);
+        l += 8.33E-4 * Math.sin(node + 4 * phase - anomaly) + 7.81E-4 * Math.sin(anomaly - 3 * node);
+        l += 6.7E-4 * Math.sin(node + 4 * phase - 2 * anomaly) + 6.06E-4 * Math.sin(2 * phase - 3 * node);
+        l += 5.97E-4 * Math.sin(2 * (phase + anomaly) - node);
+        l += E * 4.92E-4 * Math.sin(2 * phase + anomaly - sanomaly - node)
+                + 4.5E-4 * Math.sin(2 * (anomaly - phase) - node);
+        l += 4.39E-4 * Math.sin(3 * anomaly - node) + 4.23E-4 * Math.sin(node + 2 * (phase + anomaly));
+        l += 4.22E-4 * Math.sin(2 * phase - node - 3 * anomaly)
+                - E * 3.67E-4 * Math.sin(sanomaly + node + 2 * phase - anomaly);
+        l += -E * 3.53E-4 * Math.sin(sanomaly + node + 2 * phase) + 3.31E-4 * Math.sin(node + 4 * phase);
+        l += E * 3.17E-4 * Math.sin(2 * phase + node - sanomaly + anomaly);
+        l += E2 * 3.06E-4 * Math.sin(2 * (phase - sanomaly) - node) - 2.83E-4 * Math.sin(anomaly + 3 * node);
+        double W1 = 4.664E-4 * Math.cos(NA);
+        double W2 = 7.54E-5 * Math.cos(C);
+
+        double latitude = l * DEG_TO_RAD * (1.0 - W1 - W2);
 
         return new double[] {longitude, latitude, distance * EARTH_RADIUS / AU, Math.atan(BODY.Moon.eqRadius / (distance * EARTH_RADIUS))};
     }
@@ -468,31 +569,35 @@ public class SunMoonCalculator {
      * @return The ephemeris object with the output position
      */
     protected Ephemeris doCalc(double[] pos, boolean geocentric) {
-        // Correct for nutation in longitude and obliquity
+        // Correct for nutation in longitude
         pos[0] = pos[0] + nutLon;
-        pos[1] = pos[1] + nutObl;
 
-        // Ecliptic to equatorial coordinates
+        // Ecliptic to equatorial coordinates using true obliquity
         double cl = Math.cos(pos[1]);
         double x = pos[2] * Math.cos(pos[0]) * cl;
         double y = pos[2] * Math.sin(pos[0]) * cl;
         double z = pos[2] * Math.sin(pos[1]);
-        double sinEcl = Math.sin(meanObliquity), cosEcl = Math.cos(meanObliquity);
+        double sinEcl = Math.sin(meanObliquity + nutObl), cosEcl = Math.cos(meanObliquity + nutObl);
         double tmp = y * cosEcl - z * sinEcl;
         z = y * sinEcl + z * cosEcl;
         y = tmp;
 
         // Obtain topocentric rectangular coordinates
-        double sinLat = Math.sin(obsLat);
-        double cosLat = Math.cos(obsLat);
-        double radiusAU = geocentric ? 0 : EARTH_RADIUS / AU;
-        double correction[] = new double[] {
-                radiusAU * cosLat * Math.cos(lst),
-                radiusAU * cosLat * Math.sin(lst),
-                radiusAU * sinLat};
-        double xtopo = x - correction[0];
-        double ytopo = y - correction[1];
-        double ztopo = z - correction[2];
+        double xtopo = x, ytopo = y, ztopo = z;
+        if (!geocentric) {
+            double geocLat = (obsLat - .1925 * Math.sin(2 * obsLat) * DEG_TO_RAD);
+            double sinLat = Math.sin(geocLat);
+            double cosLat = Math.cos(geocLat);
+            double geocR = 1.0 - Math.pow(Math.sin(obsLat), 2) / 298.257;
+            double radiusAU = (geocR * EARTH_RADIUS + obsAlt * 0.001) / AU;
+            double correction[] = new double[] {
+                    radiusAU * cosLat * Math.cos(lst),
+                    radiusAU * cosLat * Math.sin(lst),
+                    radiusAU * sinLat};
+            xtopo -= correction[0];
+            ytopo -= correction[1];
+            ztopo -= correction[2];
+        }
 
         // Obtain topocentric equatorial coordinates
         double ra = 0.0;
@@ -508,6 +613,8 @@ public class SunMoonCalculator {
         double angh = lst - ra;
 
         // Obtain azimuth and geometric alt
+        double sinLat = Math.sin(obsLat);
+        double cosLat = Math.cos(obsLat);
         double sinDec = Math.sin(dec), cosDec = Math.cos(dec);
         double h = sinLat * sinDec + cosLat * cosDec * Math.cos(angh);
         double alt = Math.asin(h);
@@ -547,45 +654,53 @@ public class SunMoonCalculator {
         double celestialHoursToEarthTime = 1.0 / (siderealDayLength * TWO_PI);
 
         // Make calculations for the meridian
-        double transit_time1 = celestialHoursToEarthTime * normalizeRadians(ra - lst);
-        double transit_time2 = celestialHoursToEarthTime * (normalizeRadians(ra - lst) - TWO_PI);
         double transit_alt = Math.asin(sinDec * sinLat + cosDec * cosLat);
         transit_alt = refraction(transit_alt);
 
-        // Obtain the current event in time
-        double transit_time = transit_time1;
-        double jdToday = Math.floor(jd_UT - 0.5) + 0.5;
-        double transitToday2 = Math.floor(jd_UT + transit_time2 - 0.5) + 0.5;
-        // Obtain the transit time. Preference should be given to the closest event
-        // in time to the current calculation time
-        if (jdToday == transitToday2 && Math.abs(transit_time2) < Math.abs(transit_time1)) transit_time = transit_time2;
-        double transit = jd_UT + transit_time;
+        // Obtain the current transit event in time
+        double transit = getTwilightEvent(celestialHoursToEarthTime, ra, 0);
 
         // Make calculations for rise and set
         double rise = -1, set = -1;
         if (Math.abs(tmp) <= 1.0) {
             double ang_hor = Math.abs(Math.acos(tmp));
-            double rise_time1 = celestialHoursToEarthTime * normalizeRadians(ra - ang_hor - lst);
-            double set_time1 = celestialHoursToEarthTime * normalizeRadians(ra + ang_hor - lst);
-            double rise_time2 = celestialHoursToEarthTime * (normalizeRadians(ra - ang_hor - lst) - TWO_PI);
-            double set_time2 = celestialHoursToEarthTime * (normalizeRadians(ra + ang_hor - lst) - TWO_PI);
-
-            // Obtain the current events in time. Preference should be given to the closest event
-            // in time to the current calculation time (so that iteration in other method will converge)
-            double rise_time = rise_time1;
-            double riseToday2 = Math.floor(jd_UT + rise_time2 - 0.5) + 0.5;
-            if (jdToday == riseToday2 && Math.abs(rise_time2) < Math.abs(rise_time1)) rise_time = rise_time2;
-
-            double set_time = set_time1;
-            double setToday2 = Math.floor(jd_UT + set_time2 - 0.5) + 0.5;
-            if (jdToday == setToday2 && Math.abs(set_time2) < Math.abs(set_time1)) set_time = set_time2;
-            rise = jd_UT + rise_time;
-            set = jd_UT + set_time;
+            rise = getTwilightEvent(celestialHoursToEarthTime, ra, -ang_hor);
+            set = getTwilightEvent(celestialHoursToEarthTime, ra, ang_hor);
         }
 
         Ephemeris out = new Ephemeris(azi, alt, rise, set, transit, transit_alt,
                 normalizeRadians(ra), dec, dist, pos[0], pos[1], pos[3]);
         return out;
+    }
+
+    private double getTwilightEvent(double celestialHoursToEarthTime, double ra, double angh) {
+        double jdToday_UT = Math.floor(jd_UT - 0.5) + 0.5;
+
+        double eventTime = celestialHoursToEarthTime * normalizeRadians(ra + angh - lst);
+        double eventTimePrev = celestialHoursToEarthTime * (normalizeRadians(ra + angh - lst) - TWO_PI);
+        double eventDatePrev_UT = Math.floor(jd_UT + eventTimePrev - 0.5) + 0.5;
+
+        if (//jdToday_UT == eventDatePrev_UT &&
+                Math.abs(eventTimePrev) < Math.abs(eventTime) && twilightMode == TWILIGHT_MODE.CLOSEST) eventTime = eventTimePrev;
+        if (twilightMode == TWILIGHT_MODE.TODAY_UT) {
+            double eventDate_UT = Math.floor(jd_UT + eventTime - 0.5) + 0.5;
+            if (jdToday_UT != eventDate_UT) eventTime = -jd_UT - 1;
+            if (jdToday_UT == eventDatePrev_UT) eventTime = eventTimePrev;
+        }
+        if (twilightMode == TWILIGHT_MODE.TODAY_LT) {
+            double tz = TWILIGHT_MODE.timeZone / 24.0, jdToday_LT = Math.floor(jd_UT + tz - 0.5) + 0.5;
+            double eventDate_LT = Math.floor(jd_UT + tz + eventTime - 0.5) + 0.5;
+            if (jdToday_LT != eventDate_LT) eventTime = -jd_UT - 1;
+
+            double eventDatePrev_LT = Math.floor(jd_UT + tz + eventTimePrev - 0.5) + 0.5;
+            if (jdToday_LT == eventDatePrev_LT) eventTime = eventTimePrev;
+
+            double eventTimeNext = celestialHoursToEarthTime * (normalizeRadians(ra + angh - lst) + TWO_PI);
+            double eventDateNext_LT = Math.floor(jd_UT + tz + eventTimeNext - 0.5) + 0.5;
+            if (jdToday_LT == eventDateNext_LT) eventTime = eventTimeNext;
+        }
+
+        return jd_UT + eventTime;
     }
 
     /**
@@ -596,14 +711,36 @@ public class SunMoonCalculator {
     private double refraction(double alt) {
         if (alt <= -3 * DEG_TO_RAD) return alt;
 
+        double altIn = alt, prevAlt = alt;
+        int niter = 0;
+        do {
+            double altOut = computeGeometricElevation(alt);
+            alt = altIn - (altOut-alt);
+            niter ++;
+            if (Math.abs(prevAlt-alt) < 0.001 * DEG_TO_RAD) break;
+            prevAlt = alt;
+        } while (niter < 8);
+
+        return alt;
+    }
+
+    /**
+     * Compute geometric elevation from apparent elevation. Note ephemerides
+     * calculates geometric elevation, so an inversion is required, something
+     * achieved in method {@linkplain #refraction(double)} by iteration.
+     * @param alt Apparent elevation in radians.
+     * @return Geometric elevation in radians.
+     */
+    private double computeGeometricElevation(double alt) {
         double Ps = 1010; // Pressure in mb
         double Ts = 10 + 273.15; // Temperature in K
         double altDeg = alt * RAD_TO_DEG;
 
         // Bennet 1982 formulae for optical wavelengths, do the job but not accurate close to horizon
+        // Yan 1996 formulae would be better but with much more lines of code
         double r = DEG_TO_RAD * Math.abs(Math.tan(PI_OVER_TWO - (altDeg + 7.31 / (altDeg + 4.4)) * DEG_TO_RAD)) / 60.0;
         double refr = r * (0.28 * Ps / Ts);
-        return Math.min(alt + refr, PI_OVER_TWO);
+        return Math.min(alt - refr, PI_OVER_TWO);
 
 		/*
 		// Bennet formulae adapted to radio wavelenths. Use this for position in radio wavelengths
@@ -615,7 +752,7 @@ public class SunMoonCalculator {
 
 		double R0 = (16.01 / Ts) * (Ps - 0.072 * Pw + 4831 * Pw / Ts) * ARCSEC_TO_RAD;
 		double refr = R0 * Math.abs(Math.tan(PI_OVER_TWO - (altDeg + 5.9 / (altDeg + 2.5)) * DEG_TO_RAD));
-		return Math.min(alt + refr, PI_OVER_TWO);
+		return Math.min(alt - refr, PI_OVER_TWO);
 		*/
     }
 
@@ -648,12 +785,11 @@ public class SunMoonCalculator {
      * @param m Minute.
      * @param s Second.
      * @return Julian day number.
-     * @throws Exception For an inexistent date.
      */
-    protected double toJulianDay(int year, int month, int day, int h, int m, int s) throws Exception {
+    protected double toJulianDay(int year, int month, int day, int h, int m, int s) {
         // The conversion formulas are from Meeus, chapter 7.
         boolean julian = false; // Use Gregorian calendar
-        if (year < 1582 || (year == 1582 && month <= 10) || (year == 1582 && month == 10 && day < 15)) julian = true;
+        if (year < 1582 || (year == 1582 && month < 10) || (year == 1582 && month == 10 && day < 15)) julian = true;
         int D = day;
         int M = month;
         int Y = year;
@@ -666,10 +802,6 @@ public class SunMoonCalculator {
 
         double dayFraction = (h + (m + (s / 60.0)) / 60.0) / 24.0;
         double jd = dayFraction + (int) (365.25D * (Y + 4716)) + (int) (30.6001 * (M + 1)) + D + B - 1524.5;
-
-        if (jd < 2299160.0 && jd >= 2299150.0)
-            throw new Exception("invalid julian day " + jd + ". This date does not exist.");
-
         return jd;
     }
 
@@ -677,12 +809,8 @@ public class SunMoonCalculator {
      * Transforms a Julian day (rise/set/transit fields) to a common date.
      * @param jd The Julian day.
      * @return A set of integers: year, month, day, hour, minute, second.
-     * @throws Exception If the input date does not exists.
      */
-    protected static int[] getDate(double jd) throws Exception {
-        if (jd < 2299160.0 && jd >= 2299150.0)
-            throw new Exception("invalid julian day " + jd + ". This date does not exist.");
-
+    protected static int[] getDate(double jd) {
         // The conversion formulas are from Meeus,
         // Chapter 7.
         double Z = Math.floor(jd + 0.5);
@@ -716,9 +844,8 @@ public class SunMoonCalculator {
      * Returns a date as a string.
      * @param jd The Julian day.
      * @return The String.
-     * @throws Exception If the date does not exists.
      */
-    public static String getDateAsString(double jd) throws Exception {
+    public static String getDateAsString(double jd) {
         if (jd == -1) return "NO RISE/SET/TRANSIT FOR THIS OBSERVER/DATE";
 
         int date[] = getDate(jd);
@@ -777,5 +904,233 @@ public class SunMoonCalculator {
         }
         if (step > 1.0 / SECONDS_PER_DAY) return -1; // did not converge => without rise/set/transit in this date
         return riseSetJD;
+    }
+
+
+    // ************
+
+
+    /**
+     * Returns the instant of a given moon phase.
+     * @param phase The phase.
+     * @return The instant of that phase, accuracy around 1 minute or better.
+     */
+    public double getMoonPhaseTime(MOONPHASE phase) {
+        double accuracy = 10 / (30 * SECONDS_PER_DAY); // 10s / lunar cycle length in s => 10s accuracy
+        double refPhase = phase.phase;
+        double oldJD = jd_UT, oldMoonAge = moonAge;
+        while (true) {
+            double age = normalizeRadians((getMoon()[0] - getSun()[0])) / TWO_PI - refPhase;
+            if (age < 0) age += 1;
+            if (age < accuracy || age > 1 - accuracy) break;
+            if (age < 0.5) {
+                jd_UT -= age;
+            } else {
+                jd_UT += 1-age;
+            }
+            setUTDate(jd_UT);
+        }
+        double out = jd_UT;
+        setUTDate(oldJD);
+        moonAge = oldMoonAge;
+        return out;
+    }
+
+    /**
+     * Returns the dates of the official (geocentric) Spring and Autumn equinoxes.
+     * @return Dates of equinoxes, accuracy around 1 minute.
+     */
+    public double[] getEquinoxes() {
+        double jdOld = jd_UT;
+        double out[] = new double[2];
+
+        double prec = 1.0 / 86400.0; // Output precision 1s, accuracy around 1 minute
+        int year = getDate(jd_UT)[0];
+
+        for (int i=0; i<2; i++) {
+            int month = 3, day = 18;
+            if (i == 1) month = 9;
+            double jd = toJulianDay(year, month, day, 0, 0, 0);
+            setUTDate(jd);
+            double min = -1, minT = -1;
+            double stepDays = 0.25, lastDec = -1;
+            while (true) {
+                double decAbs = Math.abs(doCalc(getSun(), true).declination);
+                if (decAbs < min || min == -1) {
+                    min = decAbs;
+                    minT = jd;
+                }
+                if (decAbs > lastDec && lastDec >= 0) {
+                    if (Math.abs(stepDays) < prec) {
+                        out[i] = minT;
+                        break;
+                    }
+                    stepDays = -stepDays / 2;
+                }
+                lastDec = decAbs;
+                jd += stepDays;
+                setUTDate(jd);
+            }
+        }
+        setUTDate(jdOld);
+        return out;
+    }
+
+    /**
+     * Returns the dates of the official (geocentric) Summer and Winter solstices.
+     * @return Dates of solstices, accuracy around 1 minute.
+     */
+    public double[] getSolstices() {
+        double jdOld = jd_UT;
+        double out[] = new double[2];
+
+        double prec = 1.0 / 86400.0; // Output precision 1s, accuracy around 1 minute
+        int year = getDate(jd_UT)[0];
+
+        for (int i=0; i<2; i++) {
+            int month = 6, day = 18;
+            if (i == 1) month = 12;
+            double jd = toJulianDay(year, month, day, 0, 0, 0);
+            setUTDate(jd);
+            double max = -1, maxT = -1;
+            double stepDays = 0.25, lastDec = -1;
+            while (true) {
+                double decAbs = Math.abs(doCalc(getSun(), true).declination);
+                if (decAbs > max || max == -1) {
+                    max = decAbs;
+                    maxT = jd;
+                }
+                if (decAbs < lastDec && lastDec >= 0) {
+                    if (Math.abs(stepDays) < prec) {
+                        out[i] = maxT;
+                        break;
+                    }
+                    stepDays = -stepDays / 2;
+                }
+                lastDec = decAbs;
+                jd += stepDays;
+                setUTDate(jd);
+            }
+        }
+        setUTDate(jdOld);
+        return out;
+    }
+
+    /**
+     * Returns the maximum/minimum elevation time for the Sun or the Moon.
+     * @param forSun True for the Sun, false for the Moon.
+     * @param inferior True to get the minimum elevation time.
+     * @return The Julian day of the culmination instant, which is
+     * only slightly different than the transit.
+     */
+    public double getCulminationTime(boolean forSun, boolean inferior) {
+        double jdOld = jd_UT;
+        double jd = forSun ? sun.transit : moon.transit;
+        if (inferior) jd += 0.5 * (jd > jdOld ? -1 : 1);
+        double startPrecSec = 20.0 / SECONDS_PER_DAY, endPrecSec = 0.25 / SECONDS_PER_DAY;
+        setUTDate(jd);
+        Ephemeris ephem = forSun ? doCalc(getSun()) : doCalc(getMoon());
+        double refAlt = ephem.elevation;
+
+        while (Math.abs(startPrecSec) > endPrecSec) {
+            jd += startPrecSec;
+            setUTDate(jd);
+            ephem = forSun ? doCalc(getSun()) : doCalc(getMoon());
+            if (ephem.elevation < refAlt && !inferior) startPrecSec *= -0.25;
+            if (ephem.elevation > refAlt && inferior) startPrecSec *= -0.25;
+            refAlt = ephem.elevation;
+        }
+
+        setUTDate(jdOld);
+        return jd;
+    }
+
+    /**
+     * Returns the instant when the Sun or the Moon reaches a given azimuth.
+     * @param forSun True for the Sun, false for the Moon.
+     * @param azimuth The azimuth value to search for.
+     * @return The Julian day of the azimuth instant.
+     */
+    public double getAzimuthTime(boolean forSun, double azimuth) {
+        double jdOld = jd_UT;
+        double jd = forSun ? sun.transit : moon.transit;
+        double startPrecSec = 500.0 / SECONDS_PER_DAY, endPrecSec = 0.25 / SECONDS_PER_DAY;
+        setUTDate(jd);
+        Ephemeris ephem = forSun ? doCalc(getSun()) : doCalc(getMoon());
+        double refDif = Math.abs(ephem.azimuth - azimuth);
+
+        while (Math.abs(startPrecSec) > endPrecSec) {
+            jd += startPrecSec;
+            setUTDate(jd);
+            ephem = forSun ? doCalc(getSun()) : doCalc(getMoon());
+            double dif = Math.abs(ephem.azimuth - azimuth);
+            if (dif == 0) break;
+            if (dif > refDif) startPrecSec *= -0.25;
+            refDif = dif;
+        }
+
+        setUTDate(jdOld);
+        return jd;
+    }
+
+    /**
+     * Returns the orientation angles of the lunar disk figure. Illumination fraction
+     * is returned in the main program. Simplification of the method presented by
+     * Eckhardt, D. H., "Theory of the Libration of the Moon", Moon and planets 25, 3
+     * (1981), without the physical librations of the Moon. Accuracy around 0.5 deg
+     * for each value.
+     * Moon and Sun positions must be computed before calling this method.
+     * @return Optical libration in longitude, latitude, position angle of
+     * axis, bright limb angle, and paralactic angle.
+     */
+    public double[] getMoonDiskOrientationAngles()
+    {
+        double moonLon = moon.eclipticLongitude, moonLat = moon.eclipticLatitude,
+                moonRA = moon.rightAscension, moonDEC = moon.declination;
+        double sunRA = sun.rightAscension, sunDEC = sun.declination;
+
+        // Obliquity of ecliptic
+        double eps = meanObliquity + nutObl;
+        // Moon's argument of latitude
+        double F = (93.2720993 + 483202.0175273 * t - 0.0034029 * t * t - t * t * t / 3526000.0 + t * t * t * t / 863310000.0) * DEG_TO_RAD;
+        // Moon's inclination
+        double I = 1.54242 * DEG_TO_RAD;
+        // Moon's mean ascending node longitude
+        double omega = (125.0445550 - 1934.1361849 * t + 0.0020762 * t * t + t * t * t / 467410.0 - t * t * t * t / 18999000.0) * DEG_TO_RAD;
+
+        double cosI = Math.cos(I), sinI = Math.sin(I);
+        double cosMoonLat = Math.cos(moonLat), sinMoonLat = Math.sin(moonLat);
+        double cosMoonDec = Math.cos(moonDEC), sinMoonDec = Math.sin(moonDEC);
+
+        // Obtain optical librations lp and bp
+        double W = moonLon - omega;
+        double sinA = Math.sin(W) * cosMoonLat * cosI - sinMoonLat * sinI;
+        double cosA = Math.cos(W) * cosMoonLat;
+        double A = Math.atan2(sinA, cosA);
+        double lp = normalizeRadians(A - F);
+        double sinbp = -Math.sin(W) * cosMoonLat * sinI - sinMoonLat * cosI;
+        double bp = Math.asin(sinbp);
+
+        // Obtain position angle of axis p
+        double x = sinI * Math.sin(omega);
+        double y = sinI * Math.cos(omega) * Math.cos(eps) - cosI * Math.sin(eps);
+        double w = Math.atan2(x, y);
+        double sinp = Math.hypot(x, y) * Math.cos(moonRA - w) / Math.cos(bp);
+        double p = Math.asin(sinp);
+
+        // Compute bright limb angle bl
+        double bl = (Math.PI + Math.atan2(Math.cos(sunDEC) * Math.sin(moonRA - sunRA), Math.cos(sunDEC) *
+                sinMoonDec * Math.cos(moonRA - sunRA) - Math.sin(sunDEC) * cosMoonDec));
+
+        // Paralactic angle par
+        y = Math.sin(lst - moonRA);
+        x = Math.tan(obsLat) * cosMoonDec - sinMoonDec * Math.cos(lst - moonRA);
+        double par = 0.0;
+        if (x != 0.0) {
+            par = Math.atan2(y, x);
+        } else {
+            par = (y / Math.abs(y)) * PI_OVER_TWO;
+        }
+        return new double[] {lp, bp, p, bl, par};
     }
 }

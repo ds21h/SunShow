@@ -15,3 +15,8 @@ Version 1.2 - 05-10-2020
   - Fix: This is the real current location. Location normally displayed.
 - Minimum API level is now 19 (Android 4.4)
 - Known defect: Moon pictures are valid only for the northern hemisphere
+
+Version 1.2.1 - 05-03-2021
+- Bugfix: MapLocation in AppData was not properly initialised.
+- SunMoonCalculator upgraded to latest version (2021-02-23)
+- Updated constructor call for SunMoonCalculator. It needs an additional integer for observers altitude (0).

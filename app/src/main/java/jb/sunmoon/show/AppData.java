@@ -56,7 +56,7 @@ class AppData {
         mCurrentLocation = new LatLng(0.0, 0.0);
         mCurrentZone = ZonedDateTime.now().getZone();
         mLocationStatus = LocationInit;
-        mMapLocation = new LatLng(0.0, 0.0);
+        mMapLocation = null;
         mMapZone = "";
         mDisplay = DisplaySun;
         mSelection = "";

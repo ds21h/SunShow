@@ -9,6 +9,11 @@ The project structure is that of AndroidStudio.
 
 History:
 
+Version 1.2.1 - 05-03-2021
+- Bugfix: MapLocation in AppData was not properly initialised.
+- SunMoonCalculator upgraded to latest version (2021-02-23)
+- Updated constructor call for SunMoonCalculator. It needs an additional integer for observers altitude (0).
+
 Version 1.2 - 05-10-2020
 - SunMoonCalculator upgraded to latest version (2020-08-07)
 - Currentlocation now has 3 stages:

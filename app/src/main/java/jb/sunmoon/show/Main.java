@@ -473,14 +473,14 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
 
         mLocationCallback = new LocationCallback() {
             @Override
-            public void onLocationResult(LocationResult locationResult) {
+            public void onLocationResult(LocationResult pLocationResult) {
                 boolean lUpdate;
 
-                if (locationResult == null) {
+                if (pLocationResult == null) {
                     return;
                 }
                 lUpdate = false;
-                for (android.location.Location lLocation : locationResult.getLocations()) {
+                for (android.location.Location lLocation : pLocationResult.getLocations()) {
                     mAppData.xCurrentLocation(new LatLng(lLocation.getLatitude(), lLocation.getLongitude()));
                     lUpdate = true;
                 }
@@ -894,7 +894,7 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
         SunMoonCalculator lCalc;
 
         try {
-            lCalc = new SunMoonCalculator(pMoment.getYear(), pMoment.getMonthValue(), pMoment.getDayOfMonth(), pMoment.getHour(), pMoment.getMinute(), 0, mLocation.longitude * SunMoonCalculator.DEG_TO_RAD, mLocation.latitude * SunMoonCalculator.DEG_TO_RAD);
+            lCalc = new SunMoonCalculator(pMoment.getYear(), pMoment.getMonthValue(), pMoment.getDayOfMonth(), pMoment.getHour(), pMoment.getMinute(), 0, mLocation.longitude * SunMoonCalculator.DEG_TO_RAD, mLocation.latitude * SunMoonCalculator.DEG_TO_RAD, 0);
             lCalc.setTwilight(SunMoonCalculator.TWILIGHT.HORIZON_34arcmin);
             lCalc.calcSunAndMoon();
         } catch (Exception pExc) {
