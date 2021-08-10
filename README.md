@@ -9,6 +9,9 @@ The project structure is that of AndroidStudio.
 
 History:
 
+Version 1.3 - 10-08-2021
+- Replaced AsyncTask (depreciated) with Runnable in SingleThreadPool on app level.
+
 Version 1.2.1 - 05-03-2021
 - Bugfix: MapLocation in AppData was not properly initialised.
 - SunMoonCalculator upgraded to latest version (2021-02-23)

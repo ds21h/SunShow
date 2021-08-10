@@ -19,4 +19,7 @@
     <string name="dia_location_exists">Lokatie bestaat</string>
     <string name="dia_location_replace">Locatie **Loc** vervangen?</string>
     <string name="btn_cancel">Annuleer</string>
+    <string name="msg_int_error">Interne fout!</string>
+    <string name="msg_comm_error">Communicatie fout!</string>
+    <string name="msg_server_error">Server fout!</string>
 </resources>

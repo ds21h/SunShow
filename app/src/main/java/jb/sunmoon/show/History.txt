@@ -20,3 +20,6 @@ Version 1.2.1 - 05-03-2021
 - Bugfix: MapLocation in AppData was not properly initialised.
 - SunMoonCalculator upgraded to latest version (2021-02-23)
 - Updated constructor call for SunMoonCalculator. It needs an additional integer for observers altitude (0).
+
+Version 1.3 - 10-08-2021
+- Replaced AsyncTask (depreciated) with Runnable in SingleThreadPool on app level.

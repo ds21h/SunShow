@@ -5,7 +5,7 @@ package jb.sunmoon.show;
  */
 
 public class Location {
-    private String mName;
+    private final String mName;
     private double mLongitude;
     private double mLattitude;
     private String mZone;

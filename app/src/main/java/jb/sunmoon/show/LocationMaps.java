@@ -28,6 +28,8 @@ public class LocationMaps extends FragmentActivity implements OnMapReadyCallback
         super.onCreate(savedInstanceState);
         setContentView(R.layout.locationmaps_layout);
 
+        SupportMapFragment lFragment;
+
         mAppData = AppData.getInstance();
 
         mMapPresent = false;
@@ -39,9 +41,10 @@ public class LocationMaps extends FragmentActivity implements OnMapReadyCallback
             mPosition = savedInstanceState.getParcelable("CamPosition");
         }
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
-                .findFragmentById(R.id.frgMap);
-        mapFragment.getMapAsync(this);
+        lFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.frgMap);
+        if (lFragment != null){
+            lFragment.getMapAsync(this);
+        }
     }
 
     public void onSaveInstanceState(@NonNull Bundle savedInstanceState) {
@@ -59,13 +62,10 @@ public class LocationMaps extends FragmentActivity implements OnMapReadyCallback
         mMap = pMap;
         mMapPresent = true;
 
-        mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
-            @Override
-            public void onMapClick(LatLng pLocation) {
-                mLocation = pLocation;
-                mMap.clear();
-                mMap.addMarker(new MarkerOptions().position(mLocation).title("Location"));
-            }
+        mMap.setOnMapClickListener(pLocation -> {
+            mLocation = pLocation;
+            mMap.clear();
+            mMap.addMarker(new MarkerOptions().position(mLocation).title("Location"));
         });
 
         if (mLocation != null){

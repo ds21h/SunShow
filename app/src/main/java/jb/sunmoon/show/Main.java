@@ -17,10 +17,10 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.graphics.Typeface;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Message;
 import android.view.Display;
 import android.view.View;
 import android.view.ViewGroup;
@@ -37,24 +37,16 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.location.*;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
 import com.jakewharton.threetenabp.AndroidThreeTen;
-
-import org.json.JSONObject;
 import org.threeten.bp.LocalDate;
 import org.threeten.bp.ZoneId;
 import org.threeten.bp.ZonedDateTime;
 import org.threeten.bp.format.DateTimeFormatter;
-
-import java.lang.ref.WeakReference;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
@@ -106,6 +98,30 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
 
     private FusedLocationProviderClient mLocationClient;
 
+    Handler mTimeZoneHandler = new Handler(Looper.getMainLooper(), new Handler.Callback() {
+        @Override
+        public boolean handleMessage(Message pMessage) {
+            String lTimeZoneId;
+            String lErrMsg;
+
+            if ((pMessage.what & HandlerCode.cTimeZone) != 0) {
+                lErrMsg = HandlerCode.xCheckCode(mContext, pMessage.what);
+                if (lErrMsg == null) {
+                    if (pMessage.obj != null){
+                        lTimeZoneId = (String) pMessage.obj;
+                        mAppData.xMapZone(lTimeZoneId);
+                        mTimeZoneId = lTimeZoneId;
+                    }
+                } else {
+                    Toast.makeText(mContext, lErrMsg, Toast.LENGTH_SHORT).show();
+                }
+                sFillLongitudeLattitude();
+                sRiseSet();
+            }
+            return true;
+        }
+    });
+
     Handler mLocationHandler = new Handler(Looper.getMainLooper());
     Runnable mLocationRunnable = new Runnable() {
         @Override
@@ -135,7 +151,7 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
 
     private LocationCallback mLocationCallback;
 
-    private AdapterView.OnItemSelectedListener mSelectionListener = new AdapterView.OnItemSelectedListener() {
+    private final AdapterView.OnItemSelectedListener mSelectionListener = new AdapterView.OnItemSelectedListener() {
         @Override
         public void onItemSelected(AdapterView<?> parent, View view, int pPosition, long id) {
             Location lLocation;
@@ -255,7 +271,7 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
     }
 
     @Override
-    protected void onSaveInstanceState(@NonNull Bundle savedInstanceState) {
+    protected void onSaveInstanceState(Bundle savedInstanceState) {
         super.onSaveInstanceState(savedInstanceState);
 
         mName = mEdtName.getText().toString();
@@ -283,6 +299,8 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
     public void onResume() {
         super.onResume();
 
+        TimeZoneRunnable lTimeZoneRunnable;
+
         if (mAppData.xModus() == AppData.ModusMap) {
             mLocation = mAppData.xMapLocation();
             if (!mAppData.xMapZone().equals("")) {
@@ -291,7 +309,8 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
             sFillLongitudeLattitude();
             sRiseSet();
             if (mAppData.xMapZone().equals("")) {
-                new SelectTimeZone(this).execute();
+                lTimeZoneRunnable = new TimeZoneRunnable(mTimeZoneHandler, mLocation, getString(R.string.google_api_key));
+                SunMoonApp.getInstance().xExecutor.execute(lTimeZoneRunnable);
             }
         }
     }
@@ -321,9 +340,14 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
         }
     }
 
+    @Override
+    public void onStop() {
+        mTimeZoneHandler.removeCallbacksAndMessages(null);
+        super.onStop();
+    }
 
     @Override
-    public void onRequestPermissionsResult(int pRequest, @NonNull String[] permissions, @NonNull int[] pResults) {
+    public void onRequestPermissionsResult(int pRequest, String[] permissions, int[] pResults) {
         int lCount;
         boolean lRefused;
 
@@ -352,39 +376,6 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
         } else {
             finish();
         }
-    }
-
-    private void sProcessTimeZone(int pStatus, String pMessage, JSONObject pResult) {
-        String lResult;
-        String lMessage;
-        String lTimeZoneId;
-
-        switch (pStatus) {
-            case Result.cResultOK:
-                lResult = pResult.optString("status", "wrong JSON answer");
-                if (lResult.equals("OK")) {
-                    lTimeZoneId = pResult.optString("timeZoneId", "");
-                    if (!lTimeZoneId.equals("")) {
-                        mAppData.xMapZone(lTimeZoneId);
-                        mTimeZoneId = lTimeZoneId;
-                    }
-                } else {
-                    lMessage = pResult.optString("error_message", "");
-                    Toast.makeText(mContext, lResult + " / " + lMessage, Toast.LENGTH_SHORT).show();
-                }
-                break;
-            case Result.cResultConnectTimeOut:
-                Toast.makeText(mContext, "Connect Time-Out", Toast.LENGTH_SHORT).show();
-                break;
-            case Result.cResultReadTimeOut:
-                Toast.makeText(mContext, "Read Time-Out", Toast.LENGTH_SHORT).show();
-                break;
-            default:
-                Toast.makeText(mContext, pMessage, Toast.LENGTH_SHORT).show();
-                break;
-        }
-        sFillLongitudeLattitude();
-        sRiseSet();
     }
 
     private void sFillSelection() {
@@ -432,28 +423,25 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
             mLocationClient = LocationServices.getFusedLocationProviderClient(mContext);
             try {
                 mLocationClient.getLastLocation()
-                        .addOnCompleteListener(this, new OnCompleteListener<android.location.Location>() {
-                            @Override
-                            public void onComplete(Task pTask) {
-                                android.location.Location lLocation;
+                        .addOnCompleteListener(this, pTask -> {
+                            android.location.Location lLocation;
 
-                                if (pTask.isSuccessful()){
-                                    lLocation = (android.location.Location) pTask.getResult();
-                                    if (lLocation == null) {
-                                        mLocationStatus = 3;
-                                    } else {
-                                        mLocationStatus = 2;
-                                        mAppData.xCurrentLocation(new LatLng(lLocation.getLatitude(), lLocation.getLongitude()));
-                                        mAppData.xLocationStatus(AppData.LocationLast);
-                                        if (mAppData.xModus() == AppData.ModusCurrent) {
-                                            mLocation = mAppData.xCurrentLocation();
-                                            sRiseSet();
-                                            sFillLongitudeLattitude();
-                                        }
-                                    }
-                                } else {
+                            if (pTask.isSuccessful()){
+                                lLocation = (android.location.Location) pTask.getResult();
+                                if (lLocation == null) {
                                     mLocationStatus = 3;
+                                } else {
+                                    mLocationStatus = 2;
+                                    mAppData.xCurrentLocation(new LatLng(lLocation.getLatitude(), lLocation.getLongitude()));
+                                    mAppData.xLocationStatus(AppData.LocationLast);
+                                    if (mAppData.xModus() == AppData.ModusCurrent) {
+                                        mLocation = mAppData.xCurrentLocation();
+                                        sRiseSet();
+                                        sFillLongitudeLattitude();
+                                    }
                                 }
+                            } else {
+                                mLocationStatus = 3;
                             }
                         });
             } catch (SecurityException ignored) {
@@ -473,12 +461,9 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
 
         mLocationCallback = new LocationCallback() {
             @Override
-            public void onLocationResult(LocationResult pLocationResult) {
+            public void onLocationResult(@NonNull LocationResult pLocationResult) {
                 boolean lUpdate;
 
-                if (pLocationResult == null) {
-                    return;
-                }
                 lUpdate = false;
                 for (android.location.Location lLocation : pLocationResult.getLocations()) {
                     mAppData.xCurrentLocation(new LatLng(lLocation.getLatitude(), lLocation.getLongitude()));
@@ -588,18 +573,15 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
     public void sSetDate(View Vw) {
         DatePicker lPick;
 
-        DatePickerDialog lPicker = new DatePickerDialog(this, new DatePickerDialog.OnDateSetListener() {
+        DatePickerDialog lPicker = new DatePickerDialog(this, (view, pYear, pMonth, pDay) -> {
+            LocalDate lDate;
+            mYear = pYear;
+            mMonth = pMonth + 1;
+            mDay = pDay;
 
-            public void onDateSet(DatePicker view, int pYear, int pMonth, int pDay) {
-                LocalDate lDate;
-                mYear = pYear;
-                mMonth = pMonth + 1;
-                mDay = pDay;
-
-                lDate = LocalDate.of(mYear, mMonth, mDay);
-                mBtnDate.setText(lDate.format(DateTimeFormatter.ofPattern(cDateFormat)));
-                sRiseSet();
-            }
+            lDate = LocalDate.of(mYear, mMonth, mDay);
+            mBtnDate.setText(lDate.format(DateTimeFormatter.ofPattern(cDateFormat)));
+            sRiseSet();
         }, mYear, mMonth - 1, mDay);
         lPick = lPicker.getDatePicker();
         lPick.setCalendarViewShown(true);
@@ -926,53 +908,5 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
         lInt = new Intent();
         lInt.setClass(this, LocationMaps.class);
         startActivity(lInt);
-    }
-
-    private static class SelectTimeZone extends AsyncTask<Void, Void, RestAPI.RestResult> {
-        private WeakReference<Main> mRefMain;
-
-        private SelectTimeZone(Main pMain) {
-            mRefMain = new WeakReference<>(pMain);
-        }
-
-        @Override
-        protected RestAPI.RestResult doInBackground(Void... params) {
-            Main lMain;
-            String lRequest;
-            String lAction;
-            RestAPI.RestResult lOutput;
-            RestAPI lRestAPI;
-            long lTimeStamp;
-
-            lMain = mRefMain.get();
-            if (lMain == null) {
-                return null;
-            } else {
-                lTimeStamp = new Date().getTime() / 1000;
-                lRequest = "https://maps.googleapis.com/maps/api/timezone/json";
-                lAction = "location=" + lMain.mLocation.latitude + "," + lMain.mLocation.longitude
-                        + "&timestamp=" + lTimeStamp
-                        + "&key=" + lMain.getString(R.string.google_api_key);
-                lRestAPI = new RestAPI();
-                lRestAPI.xMethod(RestAPI.cMethodGet);
-                lRestAPI.xMediaRequest(RestAPI.cMediaText);
-                lRestAPI.xMediaReply(RestAPI.cMediaJSON);
-                lRestAPI.xUrl(lRequest);
-                lRestAPI.xAction(lAction);
-                lOutput = lRestAPI.xCallApi();
-                return lOutput;
-            }
-        }
-
-        protected void onPostExecute(RestAPI.RestResult pOutput) {
-            Main lMain;
-
-            if (pOutput != null) {
-                lMain = mRefMain.get();
-                if (lMain != null) {
-                    lMain.sProcessTimeZone(pOutput.xResult(), pOutput.xText(), pOutput.xRelyJ());
-                }
-            }
-        }
     }
 }

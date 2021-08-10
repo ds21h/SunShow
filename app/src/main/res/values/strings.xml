@@ -18,4 +18,7 @@
     <string name="dia_location_exists">Location exists</string>
     <string name="dia_location_replace">Replace location **Loc**?</string>
     <string name="btn_cancel">Cancel</string>
+    <string name="msg_int_error">Internal error!</string>
+    <string name="msg_comm_error">Communication error!</string>
+    <string name="msg_server_error">Server error!</string>
 </resources>
