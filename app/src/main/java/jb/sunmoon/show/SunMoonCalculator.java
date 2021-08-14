@@ -1,6 +1,6 @@
 package jb.sunmoon.show;
 
-// Source: http://conga.oan.es/~alonso/doku.php?id=blog:sun_moon_position
+// Source: https://bitbucket.org/talonsoalbi/sunmooncalculator/src/master/
 
 /**
  * A very simple yet accurate Sun/Moon calculator without using JPARSEC library.

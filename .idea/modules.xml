@@ -2,8 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/SunShow.iml" filepath="$PROJECT_DIR$/.idea/SunShow.iml" group="SunShow" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/app.iml" filepath="$PROJECT_DIR$/.idea/modules/app/app.iml" group="SunShow/app" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/SunShow.iml" filepath="$PROJECT_DIR$/.idea/SunShow.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/SunShow.app.iml" filepath="$PROJECT_DIR$/.idea/modules/app/SunShow.app.iml" />
     </modules>
   </component>
 </project>
