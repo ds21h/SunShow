@@ -6,6 +6,9 @@ import android.view.View;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.FragmentActivity;
 
+import com.google.android.gms.maps.MapsInitializer;
+import com.google.android.gms.maps.MapsInitializer.Renderer;
+import com.google.android.gms.maps.OnMapsSdkInitializedCallback;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -14,7 +17,7 @@ import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
-public class LocationMaps extends FragmentActivity implements OnMapReadyCallback {
+public class LocationMaps extends FragmentActivity implements OnMapReadyCallback, OnMapsSdkInitializedCallback {
     private AppData mAppData;
 
     private GoogleMap mMap;
@@ -26,6 +29,7 @@ public class LocationMaps extends FragmentActivity implements OnMapReadyCallback
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        MapsInitializer.initialize(getApplicationContext(), MapsInitializer.Renderer.LATEST, this);
         setContentView(R.layout.locationmaps_layout);
 
         SupportMapFragment lFragment;
@@ -47,6 +51,11 @@ public class LocationMaps extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
+    @Override
+    public void onMapsSdkInitialized(Renderer renderer) {
+    }
+
+    @Override
     public void onSaveInstanceState(@NonNull Bundle savedInstanceState) {
         super.onSaveInstanceState(savedInstanceState);
 
