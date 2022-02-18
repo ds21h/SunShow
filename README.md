@@ -10,7 +10,7 @@ The project structure is that of AndroidStudio.
 History:
 
 Version 1.3.1 - 18-02-2022
-= Upgraded to API 31 (Android 12)
+- Upgraded to API 31 (Android 12)
 - Upgraded to new maps SDK
 
 Version 1.3 - 10-08-2021
