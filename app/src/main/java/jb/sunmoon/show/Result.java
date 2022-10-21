@@ -3,7 +3,9 @@ package jb.sunmoon.show;
 /**
  * Created by Jan on 11-7-2016.
  */
-public class Result {
+class Result {
+    private int mResult;
+
     static final int cResultOK = 0;
 
     static final int cResultNotFound = 10;
@@ -16,4 +18,16 @@ public class Result {
     static final int cResultOutputFout = 24;
 
     static final int cResultError = 99;
+
+    Result(){
+        mResult = cResultOK;
+    }
+
+    void xResult(int pResult){
+        mResult = pResult;
+    }
+
+    int xResult(){
+        return mResult;
+    }
 }

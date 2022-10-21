@@ -33,9 +33,9 @@ class AppData {
     private String mSelection;
 
     static AppData getInstance(){
-         /*
+        /*
          * use double-check locking for thread-safe initialization.
-                * see https://www.geeksforgeeks.org/java-singleton-design-pattern-practices-examples/
+         * see https://www.geeksforgeeks.org/java-singleton-design-pattern-practices-examples/
          */
         if (mInstance == null) {
             synchronized(AppData.class){
@@ -47,7 +47,7 @@ class AppData {
         return mInstance;
     }
 
-    private AppData(){
+    AppData(){
         xInitData();
     }
 

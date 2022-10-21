@@ -1,13 +1,13 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 31
+    compileSdkVersion 33
     defaultConfig {
         applicationId "jb.sunmoon.show"
-        minSdkVersion 19
-        targetSdkVersion 31
-        versionCode 10301
-        versionName "1.3.1"
+        minSdkVersion 21
+        targetSdkVersion 33
+        versionCode 10400
+        versionName "1.4"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -17,15 +17,19 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+    namespace 'jb.sunmoon.show'
 }
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
-    implementation 'androidx.appcompat:appcompat:1.4.1'
-    implementation 'com.google.android.gms:play-services-location:19.0.1'
-    implementation 'com.google.android.gms:play-services-maps:18.0.2'
+    implementation 'org.osmdroid:osmdroid-android:6.1.13'
+    implementation 'androidx.appcompat:appcompat:1.5.1'
+    implementation 'com.google.android.gms:play-services-location:21.0.0'
+    implementation 'com.google.android.gms:play-services-maps:18.1.0'
     implementation 'com.jakewharton.threetenabp:threetenabp:1.3.0'
-    testImplementation 'junit:junit:4.13.1'
+    implementation 'androidx.preference:preference:1.2.0'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.5.1'
+    testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.3'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
 }

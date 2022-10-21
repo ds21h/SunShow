@@ -11,11 +11,15 @@ class TimeZoneRunnable implements Runnable{
     private final Handler mHandler;
     private final LatLng mLocation;
     private final String mKey;
+    private final boolean mUseTimeZoneDb;
 
-    TimeZoneRunnable(Handler pHandler, LatLng pLocation, String pKey){
+// https://timezonedb.com/references/get-time-zone  http://api.timezonedb.com/v2.1/get-time-zone?key=A5TGO2DQ7F6G&format=json&by=position&lat=52.1362213&lng=4.6645597
+
+    TimeZoneRunnable(Handler pHandler, LatLng pLocation, String pKey, boolean pTimeZoneDb){
         mHandler = pHandler;
         mLocation = pLocation;
         mKey = pKey;
+        mUseTimeZoneDb = pTimeZoneDb;
     }
 
     @Override
@@ -30,11 +34,19 @@ class TimeZoneRunnable implements Runnable{
         Message lMessage;
 
         lResult = HandlerCode.cTimeZone;
-        lTimeStamp = new Date().getTime() / 1000;
-        lRequest = "https://maps.googleapis.com/maps/api/timezone/json";
-        lAction = "location=" + mLocation.latitude + "," + mLocation.longitude
-                + "&timestamp=" + lTimeStamp
-                + "&key=" + mKey;
+        if (mUseTimeZoneDb){
+            lRequest = "http://api.timezonedb.com/v2.1/get-time-zone";
+            lAction = "format=json&by=position"
+                    + "&lat=" + mLocation.latitude
+                    + "&lng=" + mLocation.longitude
+                    + "&key=" + mKey;
+        } else {
+            lTimeStamp = new Date().getTime() / 1000;
+            lRequest = "https://maps.googleapis.com/maps/api/timezone/json";
+            lAction = "location=" + mLocation.latitude + "," + mLocation.longitude
+                    + "&timestamp=" + lTimeStamp
+                    + "&key=" + mKey;
+        }
         lRestAPI = new RestAPI();
         lRestAPI.xMethod(RestAPI.cMethodGet);
         lRestAPI.xMediaRequest(RestAPI.cMediaText);
@@ -46,7 +58,11 @@ class TimeZoneRunnable implements Runnable{
         if (lOutput.xResult() == Result.cResultOK){
             lResult |= HandlerCode.cCommunicationOK;
             if (lOutput.xReplyJ().optString("status", "wrong JSON answer").equals("OK")){
-                lTimeZone = lOutput.xReplyJ().optString("timeZoneId", "");
+                if (mUseTimeZoneDb){
+                    lTimeZone = lOutput.xReplyJ().optString("zoneName", "");
+                } else {
+                    lTimeZone = lOutput.xReplyJ().optString("timeZoneId", "");
+                }
                 if (!lTimeZone.equals("")){
                     lResult |= HandlerCode.cProcessOK;
                 }

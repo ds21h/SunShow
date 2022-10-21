@@ -1,22 +1,26 @@
 package jb.sunmoon.show;
 //*
+//*  Based on jb.sunmoon.show version 1.3 (20210810)
+//*
+//*
 //*  Uses the JSR-310 backport for Android (java.time.* package in Java 8)
 //*
 //*  See https://github.com/JakeWharton/ThreeTenABP
 //*
 
 import android.Manifest;
-import android.app.Activity;
 import android.app.DatePickerDialog;
-import android.app.DialogFragment;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Point;
+import android.graphics.Rect;
 import android.graphics.Typeface;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -24,6 +28,8 @@ import android.os.Message;
 import android.view.Display;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
+import android.view.WindowMetrics;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -35,8 +41,11 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.location.*;
@@ -49,7 +58,7 @@ import org.threeten.bp.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
+public class Main extends AppCompatActivity {
     private final Context mContext = this;
     private static final String cDateFormat = "EEEE dd - MM - yyyy";
     private static final String cTimeFormat = "HH:mm:ss";
@@ -86,6 +95,7 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
     private int mMonth;
     private int mYear;
     private String mName;
+    private boolean mUseTimeZoneDb;
 
     private int mLocationStatus;
     //* 0: Init
@@ -169,7 +179,15 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
                 case 1:
                     mAppData.xModus(AppData.ModusMap);
                     if (!mSpinnerInit) {
+                        mUseTimeZoneDb = false;
                         sToMaps();
+                    }
+                    break;
+                case 2:
+                    mAppData.xModus(AppData.ModusMap);
+                    if (!mSpinnerInit) {
+                        mUseTimeZoneDb = true;
+                        sToMapsOSM();
                     }
                     break;
                 default:
@@ -236,8 +254,10 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
             mSet = "";
             mMoonResource = R.drawable.moon_00;
             mName = "";
+            mUseTimeZoneDb = false;
             sCheckPermissions();
         } else {
+            // Note: These getParcelable requests are deprecated in Api 33. The implementation however is buggy so it is recommended to keep on using these.
             mSelection = savedInstanceState.getInt("Selection");
             mLocation = savedInstanceState.getParcelable("Location");
             mNameEntry = savedInstanceState.getBoolean("NameEntry");
@@ -250,6 +270,7 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
             mYear = savedInstanceState.getInt("Year");
             mName = savedInstanceState.getString("Name");
             mTimeZoneId = savedInstanceState.getString("TimeZoneId");
+            mUseTimeZoneDb = savedInstanceState.getBoolean("UseTimeZoneDb");
 
             lDate = LocalDate.of(mYear, mMonth, mDay);
         }
@@ -271,7 +292,7 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
     }
 
     @Override
-    protected void onSaveInstanceState(Bundle savedInstanceState) {
+    protected void onSaveInstanceState(@NonNull Bundle savedInstanceState) {
         super.onSaveInstanceState(savedInstanceState);
 
         mName = mEdtName.getText().toString();
@@ -288,6 +309,7 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
         savedInstanceState.putInt("Year", mYear);
         savedInstanceState.putString("Name", mName);
         savedInstanceState.putString("TimeZoneId", mTimeZoneId);
+        savedInstanceState.putBoolean("UseTimeZoneDb", mUseTimeZoneDb);
     }
 
     @Override
@@ -307,10 +329,15 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
                 mTimeZoneId = mAppData.xMapZone();
             }
             sFillLongitudeLattitude();
-            sRiseSet();
             if (mAppData.xMapZone().equals("")) {
-                lTimeZoneRunnable = new TimeZoneRunnable(mTimeZoneHandler, mLocation, getString(R.string.google_api_key));
+                if (mUseTimeZoneDb){
+                    lTimeZoneRunnable = new TimeZoneRunnable(mTimeZoneHandler, mLocation, getString(R.string.timezonedb_key), mUseTimeZoneDb);
+                } else {
+                    lTimeZoneRunnable = new TimeZoneRunnable(mTimeZoneHandler, mLocation, getString(R.string.google_api_key), mUseTimeZoneDb);
+                }
                 SunMoonApp.getInstance().xExecutor.execute(lTimeZoneRunnable);
+            } else {
+                sRiseSet();
             }
         }
     }
@@ -347,7 +374,8 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
     }
 
     @Override
-    public void onRequestPermissionsResult(int pRequest, String[] permissions, int[] pResults) {
+    public void onRequestPermissionsResult(int pRequest, @NonNull String[] permissions, @NonNull int[] pResults) {
+        super.onRequestPermissionsResult(pRequest, permissions, pResults);
         int lCount;
         boolean lRefused;
 
@@ -386,8 +414,9 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
 
         mAdpSelection.clear();
         mAdpSelection.add(getString(R.string.sel_current_location));
-        mAdpSelection.add(getString(R.string.sel_choose_map));
-        lSelectionPos = -2;
+        mAdpSelection.add(getString(R.string.sel_choose_map_g));
+        mAdpSelection.add(getString(R.string.sel_choose_map_osm));
+        lSelectionPos = -3;
         lLocations = mData.xLocations();
         for (lLocationCount = 0; lLocationCount < lLocations.size(); lLocationCount++) {
             lLocation = lLocations.get(lLocationCount);
@@ -404,7 +433,7 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
                 lSelectionPos = 1;
                 break;
             default:
-                lSelectionPos += 2;
+                lSelectionPos += 3;
         }
         mSpSelection.setSelection(lSelectionPos);
     }
@@ -427,7 +456,7 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
                             android.location.Location lLocation;
 
                             if (pTask.isSuccessful()){
-                                lLocation = (android.location.Location) pTask.getResult();
+                                lLocation = pTask.getResult();
                                 if (lLocation == null) {
                                     mLocationStatus = 3;
                                 } else {
@@ -453,11 +482,10 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
 
     private void sGetActualLocation(){
         LocationRequest lRequest;
+        LocationRequest.Builder lBuilder;
 
-        lRequest = LocationRequest.create();
-        lRequest.setInterval(2000);
-        lRequest.setFastestInterval(2000);
-        lRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        lBuilder = new LocationRequest.Builder(2000);
+        lRequest = lBuilder.setMinUpdateIntervalMillis(2000).setPriority(Priority.PRIORITY_HIGH_ACCURACY).build();
 
         mLocationCallback = new LocationCallback() {
             @Override
@@ -546,14 +574,25 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
     private void sFillBackground() {
         Display lDisplay;
         Point lSizePoint;
+        Rect lRect;
         int lSize;
         ImageView lImgBackground;
         Bitmap lBackground;
         int lResourceId;
+        WindowMetrics lMetrics;
+        WindowManager lManager;
 
-        lDisplay = getWindowManager().getDefaultDisplay();
+
         lSizePoint = new Point();
-        lDisplay.getSize(lSizePoint);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            lManager = this.getWindowManager();
+            lMetrics = lManager.getCurrentWindowMetrics();
+            lRect = lMetrics.getBounds();
+            lSizePoint = new Point(lRect.right - lRect.left, lRect.bottom - lRect.top);
+        } else {
+            lDisplay = getWindowManager().getDefaultDisplay();
+            lDisplay.getSize(lSizePoint);
+        }
         if (lSizePoint.x > lSizePoint.y) {
             lSize = lSizePoint.x;
         } else {
@@ -571,21 +610,19 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
     }
 
     public void sSetDate(View Vw) {
-        DatePicker lPick;
+        DatePickerDialog lPicker = new DatePickerDialog(this, new DatePickerDialog.OnDateSetListener() {
+            @Override
+            public void onDateSet(DatePicker datePicker, int pYear, int pMonth, int pDay) {
+                LocalDate lDate;
+                mYear = pYear;
+                mMonth = pMonth + 1;
+                mDay = pDay;
 
-        DatePickerDialog lPicker = new DatePickerDialog(this, (view, pYear, pMonth, pDay) -> {
-            LocalDate lDate;
-            mYear = pYear;
-            mMonth = pMonth + 1;
-            mDay = pDay;
-
-            lDate = LocalDate.of(mYear, mMonth, mDay);
-            mBtnDate.setText(lDate.format(DateTimeFormatter.ofPattern(cDateFormat)));
-            sRiseSet();
+                lDate = LocalDate.of(mYear, mMonth, mDay);
+                mBtnDate.setText(lDate.format(DateTimeFormatter.ofPattern(cDateFormat)));
+                sRiseSet();
+            }
         }, mYear, mMonth - 1, mDay);
-        lPick = lPicker.getDatePicker();
-        lPick.setCalendarViewShown(true);
-        lPick.setSpinnersShown(false);
         lPicker.show();
     }
 
@@ -617,13 +654,14 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
     }
 
     private int sSaveLocation(String pName) {
-        DialogFragment lDialog;
-        Bundle lParameters;
         List<Location> lLocations;
-        Location lLocation;
+        Location lLocation = null;
+        Location fLocation;
         int lLocationCount;
         boolean lFound;
         int lResult;
+        Result lDialogResult;
+        DialogInterface.OnClickListener dialogClickListener;
 
         lLocations = mData.xLocations();
         lFound = false;
@@ -635,56 +673,63 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
             }
         }
         if (lFound) {
-            lDialog = new YesNoDialog();
-            lParameters = new Bundle();
-            lParameters.putString(YesNoDialog.cTitle, getString(R.string.dia_location_exists));
-            lParameters.putString(YesNoDialog.cMessage, getString(R.string.dia_location_replace).replace("**Loc**", pName));
-            lParameters.putString(YesNoDialog.cYesButton, getString(R.string.btn_OK));
-            lParameters.putString(YesNoDialog.cNoButton, getString(R.string.btn_cancel));
-            lDialog.setArguments(lParameters);
-            lDialog.show(getFragmentManager(), "ReplaceLocation");
-            lResult = Result.cResultExists;
+            fLocation = lLocation; // The location needs to be final for use in the nested class!
+            lDialogResult = new Result();
+            dialogClickListener = new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    int bResult;
+
+                    switch (which) {
+                        // on below line we are setting a click listener
+                        // for our positive button
+                        case DialogInterface.BUTTON_POSITIVE:
+                                fLocation.xLongitude(mLocation.longitude);
+                                fLocation.xLattitude(mLocation.latitude);
+                                fLocation.xZone(mTimeZoneId);
+                                bResult = mData.xModifyLocation(fLocation);
+                                if (bResult == Result.cResultOK) {
+                                    lDialogResult.xResult(Result.cResultOK);
+                                    mNameEntry = false;
+                                    mAppData.xModus(AppData.ModusStorage);
+                                    mAppData.xSelection(pName);
+                                    sSetScreen();
+                                    sFillSelection();
+                                } else {
+                                    lDialogResult.xResult(Result.cResultError);
+                                }
+                            break;
+                        // on below line we are setting click listener
+                        // for our negative button.
+                        case DialogInterface.BUTTON_NEGATIVE:
+                            // on below line we are dismissing our dialog box.
+                            lDialogResult.xResult(Result.cResultExists);
+                            dialog.dismiss();
+
+                    }
+                }
+            };
+            // on below line we are creating a builder variable for our alert dialog
+            AlertDialog.Builder builder = new AlertDialog.Builder(Main.this);
+//            AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
+            // on below line we are setting message for our dialog box.
+            builder.setMessage(getString(R.string.dia_location_replace).replace("**Loc**", pName))
+                    .setTitle(R.string.dia_location_exists)
+                    // on below line we are setting positive button
+                    // and setting text to it.
+                    .setPositiveButton(R.string.btn_OK, dialogClickListener)
+                    // on below line we are setting negative button
+                    // and setting text to it.
+                    .setNegativeButton(R.string.btn_cancel, dialogClickListener)
+                    // on below line we are calling
+                    // show to display our dialog.
+                    .show();
+            lResult = lDialogResult.xResult();
         } else {
             lLocation = new Location(pName, mLocation.longitude, mLocation.latitude, mTimeZoneId);
             lResult = mData.xNewLocation(lLocation);
         }
         return lResult;
-    }
-
-    @Override
-    public void onYesNoDialogEnd(String pResult) {
-        int lResult;
-        String lName;
-        List<Location> lLocations;
-        Location lLocation = null;
-        int lLocationCount;
-        boolean lFound;
-
-        if (pResult.equals(YesNoDialog.cYesResult)) {
-            lName = mName.trim();
-            lLocations = mData.xLocations();
-            lFound = false;
-            for (lLocationCount = 0; lLocationCount < lLocations.size(); lLocationCount++) {
-                lLocation = lLocations.get(lLocationCount);
-                if (lLocation.xName().equals(lName)) {
-                    lFound = true;
-                    break;
-                }
-            }
-            if (lFound) {
-                lLocation.xLongitude(mLocation.longitude);
-                lLocation.xLattitude(mLocation.latitude);
-                lLocation.xZone(mTimeZoneId);
-                lResult = mData.xModifyLocation(lLocation);
-                if (lResult == Result.cResultOK) {
-                    mNameEntry = false;
-                    mAppData.xModus(AppData.ModusStorage);
-                    mAppData.xSelection(lName);
-                    sSetScreen();
-                    sFillSelection();
-                }
-            }
-        }
     }
 
     private void sSetScreen() {
@@ -907,6 +952,14 @@ public class Main extends Activity implements YesNoDialog.YesNoDialogListener {
 
         lInt = new Intent();
         lInt.setClass(this, LocationMaps.class);
+        startActivity(lInt);
+    }
+
+    private void sToMapsOSM() {
+        Intent lInt;
+
+        lInt = new Intent();
+        lInt.setClass(this, LocationOSM.class);
         startActivity(lInt);
     }
 }

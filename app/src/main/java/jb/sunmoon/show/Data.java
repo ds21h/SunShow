@@ -26,12 +26,6 @@ class Data extends SQLiteOpenHelper {
     private static final String cClmZone = "Zone";
 
     static Data getInstance(Context pContext) {
-        /*
-         * use the application context as suggested by CommonsWare.
-         * this will ensure that you dont accidentally leak an Activitys
-         * context (see this article for more information:
-         * http://developer.android.com/resources/articles/avoiding-memory-leaks.html)
-         */
         if (mInstance == null) {
             mInstance = new Data(pContext.getApplicationContext());
         }
