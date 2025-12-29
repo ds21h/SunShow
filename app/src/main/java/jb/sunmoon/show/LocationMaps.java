@@ -1,17 +1,16 @@
 package jb.sunmoon.show;
 
 import android.os.Bundle;
-import android.view.View;
-
 import androidx.annotation.NonNull;
 import androidx.fragment.app.FragmentActivity;
+import android.view.View;
 
 import com.google.android.gms.maps.MapsInitializer;
 import com.google.android.gms.maps.MapsInitializer.Renderer;
-import com.google.android.gms.maps.OnMapsSdkInitializedCallback;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.OnMapsSdkInitializedCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
@@ -32,30 +31,30 @@ public class LocationMaps extends FragmentActivity implements OnMapReadyCallback
         MapsInitializer.initialize(getApplicationContext(), MapsInitializer.Renderer.LATEST, this);
         setContentView(R.layout.locationmaps_layout);
 
-        SupportMapFragment lFragment;
-
         mAppData = AppData.getInstance();
+
+        SupportMapFragment lFragment;
 
         mMapPresent = false;
         if (savedInstanceState == null){
             mLocation = mAppData.xMapLocation();
             mPosition = new CameraPosition.Builder().target(mLocation).tilt(0).zoom(10).build();
         } else {
+            // Note: These getParcelable requests are deprecated in Api 33. The implementation however is buggy so it is recommended to keep on using these.
             mLocation = savedInstanceState.getParcelable("Location");
             mPosition = savedInstanceState.getParcelable("CamPosition");
         }
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         lFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.frgMap);
-        if (lFragment != null){
+        if (lFragment != null) {
             lFragment.getMapAsync(this);
         }
     }
 
     @Override
-    public void onMapsSdkInitialized(Renderer renderer) {
+    public void onMapsSdkInitialized(@NonNull Renderer renderer) {
     }
 
-    @Override
     public void onSaveInstanceState(@NonNull Bundle savedInstanceState) {
         super.onSaveInstanceState(savedInstanceState);
 
@@ -67,7 +66,7 @@ public class LocationMaps extends FragmentActivity implements OnMapReadyCallback
     }
 
     @Override
-    public void onMapReady(GoogleMap pMap) {
+    public void onMapReady(@NonNull GoogleMap pMap) {
         mMap = pMap;
         mMapPresent = true;
 

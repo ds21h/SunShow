@@ -5,4 +5,5 @@
     <color name="colorAccent">#D81B60</color>
     <color name="transparant">#00FFFFFF</color>
     <color name="text_standard">#FF0099CC</color>
+    <color name="topscreen">#DD000000</color>
 </resources>

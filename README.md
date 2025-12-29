@@ -9,6 +9,16 @@ The project structure is that of AndroidStudio.
 
 History:
 
+Version 1.4 - 29-12-2014
+- No changes!
+- Upgrade to up-to-date gradle files and plugins in order to have a functioning release.
+
+Version 1.4 - 21-10-2022
+- Upgraded to API 33 (Android 13)
+- Replaced various deprecated functions with their new equivalents (introducing Android version tests where necessary)
+- The <Bundle>.getParcellable as used is also deprecated. Its implementation in Android 13 however is buggy so they are not upgraded (Google recommendation) 
+- Added OSM maps through OsmDroid
+
 Version 1.3.1 - 18-02-2022
 - Upgraded to API 31 (Android 12)
 - Upgraded to new maps SDK
