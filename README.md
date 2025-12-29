@@ -9,6 +9,10 @@ The project structure is that of AndroidStudio.
 
 History:
 
+Version 1.4 - 29-12-2014
+- No changes!
+- Upgrade to up-to-date gradle files and plugins in order to have a functioning release.
+
 Version 1.4 - 21-10-2022
 - Upgraded to API 33 (Android 13)
 - Replaced various deprecated functions with their new equivalents (introducing Android version tests where necessary)
