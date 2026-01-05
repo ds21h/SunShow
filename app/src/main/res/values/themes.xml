@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Base.AppTheme" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="textInputStyle">@style/CustomTextInputLayout</item>
+        <item name="buttonStyle">@style/CustomButtonLayout</item>
+    </style>
+
+    <style name="CustomTextInputLayout" parent="Widget.Material3.TextInputLayout.FilledBox">
+        <!-- The background color of the input box -->
+        <item name="boxBackgroundColor">@android:color/transparent</item>
+    </style>
+    <style name="CustomButtonLayout" parent="Widget.Material3.TextInputLayout.FilledBox">
+        <!-- The background color of the button -->
+        <item name="backgroundColor">@android:color/transparent</item>
+    </style>
+
+</resources>

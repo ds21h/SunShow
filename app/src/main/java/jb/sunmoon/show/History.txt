@@ -34,6 +34,11 @@ Version 1.4 - 21-10-2022
 - The <Bundle>.getParcellable as used is also deprecated. Its implementation in Android 13 however is buggy so they are not upgraded (Google recommendation)
 - Added OSM maps through OsmDroid
 
-Version 1.4 - 29-12-2014
+Version 1.4 - 29-12-2025
 - No changes!
 - Upgrade to up-to-date gradle files and plugins in order to have a functioning release.
+
+Version 1.5 - 05-01-2026
+- Upgraded to API 36
+- The deprecated <Bundle>.getParcellable calls are surrounded with version test limiting their use up to and including API 33
+- Google maps interface deleted. Only OSM maps are avilable.

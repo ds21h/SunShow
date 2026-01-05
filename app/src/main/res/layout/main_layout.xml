@@ -5,14 +5,14 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     >
+ <!--   android:fitsSystemWindows="true" -->
 
     <ImageView
         android:id="@+id/imgBackground"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_weight="0"
-        android:adjustViewBounds="true"
-        android:scaleType="center" />
+        android:adjustViewBounds="false"
+        android:scaleType="centerCrop" />
 
     <LinearLayout
         android:id="@+id/lyoMain"
@@ -38,8 +38,27 @@
                 android:id="@+id/spSelection"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:popupBackground="@android:color/background_light"
                 android:spinnerMode="dropdown" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnDB"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="0"
+                android:text="..."
+                android:textColor="@color/text_standard"
+                app:strokeColor="@color/text_standard"
+                app:strokeWidth="0dp"
+                app:cornerRadius="4dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minHeight="0dp"
+                android:minWidth="0dp"
+                android:padding="4dp"
+            />
 
         </LinearLayout>
 
@@ -68,15 +87,18 @@
                 android:inputType="textPersonName"
                 android:textColor="@color/text_standard" />
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnNameOk"
+                style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="0"
-                android:onClick="sNameOk"
                 android:text="@string/btn_OK"
-                android:background="@drawable/back_button"
-                android:textColor="@color/text_standard" />
+                android:textColor="@color/text_standard"
+                app:strokeColor="@color/text_standard"
+                app:strokeWidth="1dp"
+                app:cornerRadius="4dp" />
+
         </LinearLayout>
 
         <Space
@@ -208,15 +230,17 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1" />
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnSave"
+                style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="0"
-                android:background="@drawable/back_button"
-                android:onClick="sSaveLocation"
                 android:text="@string/btn_save"
-                android:textColor="@color/text_standard" />
+                android:textColor="@color/text_standard"
+                app:strokeColor="@color/text_standard"
+                app:strokeWidth="1dp"
+                app:cornerRadius="4dp" />
 
         </LinearLayout>
 
@@ -239,14 +263,18 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1" />
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnDate"
+                style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="3"
-                android:background="@drawable/back_button"
+                android:text="Date Text"
+                android:textSize="20sp"
                 android:textColor="@color/text_standard"
-                android:onClick="sSetDate" />
+                app:strokeColor="@color/text_standard"
+                app:strokeWidth="1dp"
+                app:cornerRadius="4dp" />
 
             <Space
                 android:layout_width="wrap_content"
@@ -364,7 +392,6 @@
                 android:id="@+id/imbSun"
                 android:layout_width="80dp"
                 android:layout_height="48dp"
-                android:onClick="sSun_Click"
                 android:background="@color/transparant"
                 android:src="@mipmap/sun" />
 
@@ -377,7 +404,6 @@
                 android:id="@+id/imbMoon"
                 android:layout_width="80dp"
                 android:layout_height="48dp"
-                android:onClick="sMoon_Click"
                 android:background="@color/transparant"
                 android:src="@mipmap/moon" />
 

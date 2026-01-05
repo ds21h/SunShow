@@ -180,4 +180,12 @@ class Data extends SQLiteOpenHelper {
 
         return lResult;
     }
+
+    void xCleanLocations(){
+        SQLiteDatabase lDB;
+
+        lDB = this.getWritableDatabase();
+
+        lDB.delete(cTableLocation, null, null);
+    }
 }

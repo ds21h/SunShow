@@ -2,6 +2,7 @@ package jb.sunmoon.show;
 
 import android.app.Activity;
 import android.content.Context;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -81,8 +82,13 @@ public class LocationOSM extends Activity {
             lZoom = 9.5;
         } else {
             // Note: These getParcelable requests are deprecated in Api 33. The implementation however is buggy so it is recommended to keep on using these.
-            mLocation = savedInstanceState.getParcelable("Location");
-            mPosition = savedInstanceState.getParcelable("Position");
+            if (Build.VERSION.SDK_INT > Build.VERSION_CODES.TIRAMISU){
+                mLocation = savedInstanceState.getParcelable("Location", LatLng.class);
+                mPosition = savedInstanceState.getParcelable("Position", GeoPoint.class);
+            } else {
+                mLocation = savedInstanceState.getParcelable("Location");
+                mPosition = savedInstanceState.getParcelable("Position");
+            }
             lZoom = savedInstanceState.getDouble("Zoom");
         }
 
@@ -104,7 +110,7 @@ public class LocationOSM extends Activity {
 
 //        mMap.addMapListener(new DelayedMapListener(mMapListener, 1000));
         mItemizedIconOverlay = new ItemizedIconOverlay<>(mItems,
-                new ItemizedIconOverlay.OnItemGestureListener<OverlayItem>() {
+                new ItemizedIconOverlay.OnItemGestureListener<>() {
                     @Override
                     public boolean onItemSingleTapUp(final int index, final OverlayItem item) {
                         return false;

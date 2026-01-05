@@ -11,7 +11,6 @@
     <string name="lb_rise">Rise</string>
     <string name="lb_set">Set</string>
     <string name="sel_current_location">Current location</string>
-    <string name="sel_choose_map_g">Choose on map (G)</string>
     <string name="title_activity_lokatie_maps">Select location</string>
     <string name="btn_select">Select</string>
     <string name="msg_permissions">Insufficient permissions granted!</string>
@@ -23,6 +22,6 @@
     <string name="msg_comm_error">Communication error!</string>
     <string name="msg_server_error">Server error!</string>
     <string name="msg_no_image">No image received!</string>
-    <string name="sel_choose_map_osm">Choose on map (OSM)</string>
+    <string name="sel_choose_map">Choose on map</string>
     <string name="title_marker_selection">Selected location</string>
 </resources>
