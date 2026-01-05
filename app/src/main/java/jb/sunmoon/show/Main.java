@@ -1,8 +1,5 @@
 package jb.sunmoon.show;
 //*
-//*  Based on jb.sunmoon.show version 1.3 (20210810)
-//*
-//*
 //*  Uses the JSR-310 backport for Android (java.time.* package in Java 8)
 //*
 //*  See https://github.com/JakeWharton/ThreeTenABP
@@ -33,18 +30,23 @@ import android.view.WindowMetrics;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.DatePicker;
+//import android.widget.DatePicker;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
@@ -95,7 +97,7 @@ public class Main extends AppCompatActivity {
     private int mMonth;
     private int mYear;
     private String mName;
-    private boolean mUseTimeZoneDb;
+//    private boolean mUseTimeZoneDb;
 
     private int mLocationStatus;
     //* 0: Init
@@ -110,7 +112,7 @@ public class Main extends AppCompatActivity {
 
     Handler mTimeZoneHandler = new Handler(Looper.getMainLooper(), new Handler.Callback() {
         @Override
-        public boolean handleMessage(Message pMessage) {
+        public boolean handleMessage(@NonNull Message pMessage) {
             String lTimeZoneId;
             String lErrMsg;
 
@@ -176,17 +178,17 @@ public class Main extends AppCompatActivity {
                     sFillLongitudeLattitude();
                     sRiseSet();
                     break;
-                case 1:
+/*                case 1:
                     mAppData.xModus(AppData.ModusMap);
                     if (!mSpinnerInit) {
                         mUseTimeZoneDb = false;
                         sToMaps();
                     }
-                    break;
-                case 2:
+                    break; */
+                case 1:
                     mAppData.xModus(AppData.ModusMap);
                     if (!mSpinnerInit) {
-                        mUseTimeZoneDb = true;
+//                        mUseTimeZoneDb = true;
                         sToMapsOSM();
                     }
                     break;
@@ -214,8 +216,46 @@ public class Main extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WindowCompat.enableEdgeToEdge(this.getWindow());
         setContentView(R.layout.main_layout);
         AndroidThreeTen.init(this);
+
+        LinearLayout lLyoMain = findViewById(R.id.lyoMain);
+        ViewCompat.setOnApplyWindowInsetsListener(lLyoMain, (pView, pInsets) -> {
+            Insets lInsets;
+            ViewGroup.MarginLayoutParams lLayoutParms;
+
+            lInsets = pInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+            lLayoutParms = (ViewGroup.MarginLayoutParams) pView.getLayoutParams();
+            lLayoutParms.topMargin = lInsets.top;
+            lLayoutParms.leftMargin = lInsets.left;
+            lLayoutParms.bottomMargin = lInsets.bottom;
+            lLayoutParms.rightMargin = lInsets.right;
+            pView.setLayoutParams(lLayoutParms);
+
+            return WindowInsetsCompat.CONSUMED;
+        });
+
+        com.google.android.material.button.MaterialButton lBtnDB = findViewById(R.id.btnDB);
+        lBtnDB.setOnClickListener(pView -> sDB_menu());
+        mBtnNameOk = findViewById(R.id.btnNameOk);
+        mBtnNameOk.setOnClickListener(pView -> sNameOk());
+        mBtnSave = findViewById(R.id.btnSave);
+        mBtnSave.setOnClickListener(pView -> sSaveLocation());
+        mBtnDate = findViewById(R.id.btnDate);
+        mBtnDate.setOnClickListener(pView -> sSetDate());
+        android.widget.ImageButton lImbSun = findViewById(R.id.imbSun);
+        lImbSun.setOnClickListener(pView -> sSun_Click());
+        android.widget.ImageButton lImbMoon = findViewById(R.id.imbMoon);
+        lImbMoon.setOnClickListener(pView -> sMoon_Click());
+
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                // Back is pressed... Finishing the activity
+                sBackPressed();
+            }
+        });
 
         LocalDate lDate;
 
@@ -233,9 +273,6 @@ public class Main extends AppCompatActivity {
         mTxtTimeZone = findViewById(R.id.txtTimeZone);
         mTxtRise = findViewById(R.id.txtRise);
         mTxtSet = findViewById(R.id.txtSet);
-        mBtnDate = findViewById(R.id.btnDate);
-        mBtnSave = findViewById(R.id.btnSave);
-        mBtnNameOk = findViewById(R.id.btnNameOk);
 
         mTextColor = mTxtLongitude.getCurrentTextColor();
 
@@ -254,12 +291,16 @@ public class Main extends AppCompatActivity {
             mSet = "";
             mMoonResource = R.drawable.moon_00;
             mName = "";
-            mUseTimeZoneDb = false;
+//            mUseTimeZoneDb = false;
             sCheckPermissions();
         } else {
-            // Note: These getParcelable requests are deprecated in Api 33. The implementation however is buggy so it is recommended to keep on using these.
             mSelection = savedInstanceState.getInt("Selection");
-            mLocation = savedInstanceState.getParcelable("Location");
+            if (Build.VERSION.SDK_INT > Build.VERSION_CODES.TIRAMISU){
+                mLocation = savedInstanceState.getParcelable("Location", LatLng.class);
+
+            } else {
+                mLocation = savedInstanceState.getParcelable("Location");
+            }
             mNameEntry = savedInstanceState.getBoolean("NameEntry");
             mLocationInit = savedInstanceState.getBoolean("Init");
             mRise = savedInstanceState.getString("Rise");
@@ -270,7 +311,7 @@ public class Main extends AppCompatActivity {
             mYear = savedInstanceState.getInt("Year");
             mName = savedInstanceState.getString("Name");
             mTimeZoneId = savedInstanceState.getString("TimeZoneId");
-            mUseTimeZoneDb = savedInstanceState.getBoolean("UseTimeZoneDb");
+//            mUseTimeZoneDb = savedInstanceState.getBoolean("UseTimeZoneDb");
 
             lDate = LocalDate.of(mYear, mMonth, mDay);
         }
@@ -309,7 +350,7 @@ public class Main extends AppCompatActivity {
         savedInstanceState.putInt("Year", mYear);
         savedInstanceState.putString("Name", mName);
         savedInstanceState.putString("TimeZoneId", mTimeZoneId);
-        savedInstanceState.putBoolean("UseTimeZoneDb", mUseTimeZoneDb);
+//        savedInstanceState.putBoolean("UseTimeZoneDb", mUseTimeZoneDb);
     }
 
     @Override
@@ -325,16 +366,12 @@ public class Main extends AppCompatActivity {
 
         if (mAppData.xModus() == AppData.ModusMap) {
             mLocation = mAppData.xMapLocation();
-            if (!mAppData.xMapZone().equals("")) {
+            if (!mAppData.xMapZone().isEmpty()) {
                 mTimeZoneId = mAppData.xMapZone();
             }
             sFillLongitudeLattitude();
-            if (mAppData.xMapZone().equals("")) {
-                if (mUseTimeZoneDb){
-                    lTimeZoneRunnable = new TimeZoneRunnable(mTimeZoneHandler, mLocation, getString(R.string.timezonedb_key), mUseTimeZoneDb);
-                } else {
-                    lTimeZoneRunnable = new TimeZoneRunnable(mTimeZoneHandler, mLocation, getString(R.string.google_api_key), mUseTimeZoneDb);
-                }
+            if (mAppData.xMapZone().isEmpty()) {
+                lTimeZoneRunnable = new TimeZoneRunnable(mTimeZoneHandler, mLocation, getString(R.string.timezonedb_key));
                 SunMoonApp.getInstance().xExecutor.execute(lTimeZoneRunnable);
             } else {
                 sRiseSet();
@@ -346,10 +383,6 @@ public class Main extends AppCompatActivity {
         List<String> lPermissions;
 
         lPermissions = new ArrayList<>();
-        if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED) {
-            lPermissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
-        }
         if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.INTERNET)
                 != PackageManager.PERMISSION_GRANTED) {
             lPermissions.add(Manifest.permission.INTERNET);
@@ -358,7 +391,7 @@ public class Main extends AppCompatActivity {
                 != PackageManager.PERMISSION_GRANTED) {
             lPermissions.add(Manifest.permission.ACCESS_FINE_LOCATION);
         }
-        if (lPermissions.size() > 0) {
+        if (!lPermissions.isEmpty()) {
             ActivityCompat.requestPermissions(this,
                     lPermissions.toArray(new String[0]),
                     1);
@@ -396,8 +429,7 @@ public class Main extends AppCompatActivity {
         }
     }
 
-    @Override
-    public void onBackPressed() {
+    private void sBackPressed(){
         if (mNameEntry) {
             mNameEntry = false;
             sSetScreen();
@@ -405,6 +437,17 @@ public class Main extends AppCompatActivity {
             finish();
         }
     }
+
+/*    @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+        if (mNameEntry) {
+            mNameEntry = false;
+            sSetScreen();
+        } else {
+            finish();
+        }
+    } */
 
     private void sFillSelection() {
         List<Location> lLocations;
@@ -414,9 +457,8 @@ public class Main extends AppCompatActivity {
 
         mAdpSelection.clear();
         mAdpSelection.add(getString(R.string.sel_current_location));
-        mAdpSelection.add(getString(R.string.sel_choose_map_g));
-        mAdpSelection.add(getString(R.string.sel_choose_map_osm));
-        lSelectionPos = -3;
+        mAdpSelection.add(getString(R.string.sel_choose_map));
+        lSelectionPos = -2;
         lLocations = mData.xLocations();
         for (lLocationCount = 0; lLocationCount < lLocations.size(); lLocationCount++) {
             lLocation = lLocations.get(lLocationCount);
@@ -433,7 +475,7 @@ public class Main extends AppCompatActivity {
                 lSelectionPos = 1;
                 break;
             default:
-                lSelectionPos += 3;
+                lSelectionPos += 2;
         }
         mSpSelection.setSelection(lSelectionPos);
     }
@@ -554,7 +596,15 @@ public class Main extends AppCompatActivity {
         }
     }
 
-    public void sSun_Click(View Vw) {
+    private void sDB_menu(){
+        Intent lInt;
+
+        lInt = new Intent();
+        lInt.setClass(this, DBMenu.class);
+        startActivity(lInt);
+    }
+
+    private void sSun_Click() {
         if (mAppData.xDisplay() != AppData.DisplaySun) {
             mAppData.xDisplay(AppData.DisplaySun);
             sFillBackground();
@@ -563,7 +613,7 @@ public class Main extends AppCompatActivity {
         }
     }
 
-    public void sMoon_Click(View Vw) {
+    private void sMoon_Click() {
         if (mAppData.xDisplay() != AppData.DisplayMoon) {
             mAppData.xDisplay(AppData.DisplayMoon);
             sRiseSet();
@@ -609,37 +659,34 @@ public class Main extends AppCompatActivity {
         lImgBackground.setImageBitmap(lBackground);
     }
 
-    public void sSetDate(View Vw) {
-        DatePickerDialog lPicker = new DatePickerDialog(this, new DatePickerDialog.OnDateSetListener() {
-            @Override
-            public void onDateSet(DatePicker datePicker, int pYear, int pMonth, int pDay) {
-                LocalDate lDate;
-                mYear = pYear;
-                mMonth = pMonth + 1;
-                mDay = pDay;
+    private void sSetDate() {
+        DatePickerDialog lPicker = new DatePickerDialog(this, (datePicker, pYear, pMonth, pDay) -> {
+            LocalDate lDate;
+            mYear = pYear;
+            mMonth = pMonth + 1;
+            mDay = pDay;
 
-                lDate = LocalDate.of(mYear, mMonth, mDay);
-                mBtnDate.setText(lDate.format(DateTimeFormatter.ofPattern(cDateFormat)));
-                sRiseSet();
-            }
+            lDate = LocalDate.of(mYear, mMonth, mDay);
+            mBtnDate.setText(lDate.format(DateTimeFormatter.ofPattern(cDateFormat)));
+            sRiseSet();
         }, mYear, mMonth - 1, mDay);
         lPicker.show();
     }
 
-    public void sSaveLocation(View Vw) {
+    private void sSaveLocation() {
         mNameEntry = true;
         mName = "";
         mEdtName.setText(mName);
         sSetScreen();
     }
 
-    public void sNameOk(View Vw) {
+    private void sNameOk() {
         String lName;
         int lResult;
 
         mName = mEdtName.getText().toString();
         lName = mName.trim();
-        if (lName.equals("")) {
+        if (lName.isEmpty()) {
             Toast.makeText(mContext, R.string.msg_noname, Toast.LENGTH_SHORT).show();
         } else {
             lResult = sSaveLocation(lName);
@@ -675,38 +722,35 @@ public class Main extends AppCompatActivity {
         if (lFound) {
             fLocation = lLocation; // The location needs to be final for use in the nested class!
             lDialogResult = new Result();
-            dialogClickListener = new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    int bResult;
+            dialogClickListener = (dialog, which) -> {
+                int bResult;
 
-                    switch (which) {
-                        // on below line we are setting a click listener
-                        // for our positive button
-                        case DialogInterface.BUTTON_POSITIVE:
-                                fLocation.xLongitude(mLocation.longitude);
-                                fLocation.xLattitude(mLocation.latitude);
-                                fLocation.xZone(mTimeZoneId);
-                                bResult = mData.xModifyLocation(fLocation);
-                                if (bResult == Result.cResultOK) {
-                                    lDialogResult.xResult(Result.cResultOK);
-                                    mNameEntry = false;
-                                    mAppData.xModus(AppData.ModusStorage);
-                                    mAppData.xSelection(pName);
-                                    sSetScreen();
-                                    sFillSelection();
-                                } else {
-                                    lDialogResult.xResult(Result.cResultError);
-                                }
-                            break;
-                        // on below line we are setting click listener
-                        // for our negative button.
-                        case DialogInterface.BUTTON_NEGATIVE:
-                            // on below line we are dismissing our dialog box.
-                            lDialogResult.xResult(Result.cResultExists);
-                            dialog.dismiss();
+                switch (which) {
+                    // on below line we are setting a click listener
+                    // for our positive button
+                    case DialogInterface.BUTTON_POSITIVE:
+                            fLocation.xLongitude(mLocation.longitude);
+                            fLocation.xLattitude(mLocation.latitude);
+                            fLocation.xZone(mTimeZoneId);
+                            bResult = mData.xModifyLocation(fLocation);
+                            if (bResult == Result.cResultOK) {
+                                lDialogResult.xResult(Result.cResultOK);
+                                mNameEntry = false;
+                                mAppData.xModus(AppData.ModusStorage);
+                                mAppData.xSelection(pName);
+                                sSetScreen();
+                                sFillSelection();
+                            } else {
+                                lDialogResult.xResult(Result.cResultError);
+                            }
+                        break;
+                    // on below line we are setting click listener
+                    // for our negative button.
+                    case DialogInterface.BUTTON_NEGATIVE:
+                        // on below line we are dismissing our dialog box.
+                        lDialogResult.xResult(Result.cResultExists);
+                        dialog.dismiss();
 
-                    }
                 }
             };
             // on below line we are creating a builder variable for our alert dialog
@@ -947,13 +991,13 @@ public class Main extends AppCompatActivity {
         return lLocalTime;
     }
 
-    private void sToMaps() {
+/*    private void sToMaps() {
         Intent lInt;
 
         lInt = new Intent();
         lInt.setClass(this, LocationMaps.class);
         startActivity(lInt);
-    }
+    } */
 
     private void sToMapsOSM() {
         Intent lInt;

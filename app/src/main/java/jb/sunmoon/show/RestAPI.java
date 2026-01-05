@@ -17,7 +17,7 @@ import java.net.URL;
  */
 public class RestAPI {
     public static final String cMethodGet = "GET";
-    public static final String cMethodPut = "PUT";
+//    public static final String cMethodPut = "PUT";
 
     public static final String cMediaJSON = "application/json";
     public static final String cMediaText = "text/plain";
@@ -70,7 +70,7 @@ public class RestAPI {
 
         lStr = new StringBuilder();
         if (mMethod.equals(cMethodGet)){
-            if (!mAction.equals("")){
+            if (!mAction.isEmpty()){
                 lUrlS = mUrl + "?" + mAction;
             } else {
                 lUrlS = mUrl;
@@ -87,7 +87,7 @@ public class RestAPI {
             lConn.setRequestProperty("Accept", mMediaReply);
             lConn.setConnectTimeout(5000);
             lConn.setReadTimeout(5000);
-            if (!lAction.equals("")) {
+            if (!lAction.isEmpty()) {
                 lConn.setRequestProperty("Content-Type", mMediaRequest);
                 lConn.setDoOutput(true);
                 lOutStream = new DataOutputStream(lConn.getOutputStream());
@@ -137,9 +137,9 @@ public class RestAPI {
             return mResult;
         }
 
-        public String xText() {
+/*        public String xText() {
             return mText;
-        }
+        } */
 
         public JSONObject xReplyJ(){
             if (mJson){
@@ -149,9 +149,9 @@ public class RestAPI {
             }
         }
 
-        public String xReplyS(){
+/*        public String xReplyS(){
             return mReplyS;
-        }
+        } */
 
         public RestResult(int pResult, String pOutput){
             mReplyS = pOutput;

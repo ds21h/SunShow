@@ -9,6 +9,11 @@ The project structure is that of AndroidStudio.
 
 History:
 
+Version 1.5 - 05-01-2026
+- Upgraded to API 36
+- The deprecated <Bundle>.getParcellable calls are surrounded with version test limiting their use up to and including API 33
+- Google maps interface deleted. Only OSM maps are avilable.
+
 Version 1.4 - 29-12-2014
 - No changes!
 - Upgrade to up-to-date gradle files and plugins in order to have a functioning release.

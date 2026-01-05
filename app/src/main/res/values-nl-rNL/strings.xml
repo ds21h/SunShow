@@ -11,7 +11,6 @@
     <string name="lb_rise">Opkomst</string>
     <string name="lb_set">Ondergang</string>
     <string name="sel_current_location">Huidige lokatie</string>
-    <string name="sel_choose_map_g">Kies op kaart (G)</string>
     <string name="title_activity_lokatie_maps">Kies lokatie</string>
     <string name="btn_select">Selecteer</string>
     <string name="msg_permissions">"Onvoldoende permissies! "</string>
@@ -23,6 +22,6 @@
     <string name="msg_comm_error">Communicatie fout!</string>
     <string name="msg_server_error">Server fout!</string>
     <string name="msg_no_image">Geen plaatje ontvangen!</string>
-    <string name="sel_choose_map_osm">Kies op kaart (OSM)</string>
+    <string name="sel_choose_map">Kies op kaart</string>
     <string name="title_marker_selection">Geselecteerde lokatie</string>
 </resources>
