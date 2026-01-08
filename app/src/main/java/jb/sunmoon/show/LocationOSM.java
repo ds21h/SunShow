@@ -108,7 +108,6 @@ public class LocationOSM extends Activity {
         lOverlay = new MapEventsOverlay(mEventReceiver);
         mMap.getOverlays().add(0,lOverlay);
 
-//        mMap.addMapListener(new DelayedMapListener(mMapListener, 1000));
         mItemizedIconOverlay = new ItemizedIconOverlay<>(mItems,
                 new ItemizedIconOverlay.OnItemGestureListener<>() {
                     @Override

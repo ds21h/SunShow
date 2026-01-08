@@ -7,9 +7,9 @@ import java.util.concurrent.Executors;
 
 public class SunMoonApp extends Application {
     private static SunMoonApp mSunMoonApp;
-    ExecutorService xExecutor;
+    public ExecutorService xExecutor;
 
-    static SunMoonApp getInstance(){
+    public static SunMoonApp getInstance(){
         return mSunMoonApp;
     }
 

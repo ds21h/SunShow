@@ -25,9 +25,9 @@ public class DBMenu extends Activity {
     private final Context mContext = this;
     private static final int cReqExportFile = 1;
     private static final int cReqImportFile = 2;
-    private static final String cLineType = "Type";
+    protected static final String cLineType = "Type";
     private static final String cTypeLocation = "Location";
-    private static final String cValue = "Value";
+    protected static final String cValue = "Value";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,14 +79,14 @@ public class DBMenu extends Activity {
         startActivityForResult(lIntent, cReqImportFile);
     }
 
-    private void sExportDB(Uri pFileName) {
+    protected void sExportDB(Uri pFileName) {
         OutputStream lOutStream;
         BufferedWriter lBuffer;
         JSONObject lResult;
         List<Location> lLocations;
 
         try {
-            lOutStream = mContext.getContentResolver().openOutputStream(pFileName);
+            lOutStream = mContext.getContentResolver().openOutputStream(pFileName, "w");
             lBuffer = new BufferedWriter(new OutputStreamWriter(lOutStream));
             lLocations = Data.getInstance(this).xLocations();
             for (Location bLocation : lLocations) {
@@ -109,7 +109,7 @@ public class DBMenu extends Activity {
         finish();
     }
 
-    private void sImportDB(Uri pFileName) {
+    protected void sImportDB(Uri pFileName) {
         InputStream lInStream;
         BufferedReader lBuffer;
         JSONObject lResult;
@@ -118,7 +118,6 @@ public class DBMenu extends Activity {
         String lLineType;
         int lPhase;
         Location lLocation;
-//        String lName;
 
         lPhase = 0;
         try {
@@ -140,22 +139,6 @@ public class DBMenu extends Activity {
                             Data.getInstance(this).xNewLocation(lLocation);
                         }
                     }
-/*                    switch (lLineType) {
-                        case cTypeLocation: {
-                            if (lPhase < 1) {
-                                Data.getInstance(this).xCleanLocations();
-                                lPhase = 1;
-                            }
-                            if (lPhase == 1) {
-                                lValue = lResult.optJSONObject(cValue);
-                                if (lValue != null) {
-                                    lLocation = new Location(lValue);
-                                    Data.getInstance(this).xNewLocation(lLocation);
-                                }
-                            }
-                            break;
-                        }
-                    } */
                 }
                 lLine = lBuffer.readLine();
             }

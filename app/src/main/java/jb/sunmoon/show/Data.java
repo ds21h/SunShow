@@ -37,7 +37,7 @@ class Data extends SQLiteOpenHelper {
      * make call to static factory method "getInstance()" instead.
      */
     private Data(Context pContext) {
-        super(pContext, pContext.getExternalFilesDir(null).getAbsolutePath() + "/" + cDBName, null, cDBVersion);
+        super(pContext, cDBName, null, cDBVersion);
     }
 
     @Override

@@ -30,7 +30,6 @@ import android.view.WindowMetrics;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
-//import android.widget.DatePicker;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -67,7 +66,7 @@ public class Main extends AppCompatActivity {
     private static final String cTimeNull = "--:--:--";
 
     private Data mData;
-    private AppData mAppData;
+    protected AppData mAppData;
 
     private int mTextColor;
 
@@ -97,7 +96,6 @@ public class Main extends AppCompatActivity {
     private int mMonth;
     private int mYear;
     private String mName;
-//    private boolean mUseTimeZoneDb;
 
     private int mLocationStatus;
     //* 0: Init
@@ -178,17 +176,9 @@ public class Main extends AppCompatActivity {
                     sFillLongitudeLattitude();
                     sRiseSet();
                     break;
-/*                case 1:
-                    mAppData.xModus(AppData.ModusMap);
-                    if (!mSpinnerInit) {
-                        mUseTimeZoneDb = false;
-                        sToMaps();
-                    }
-                    break; */
                 case 1:
                     mAppData.xModus(AppData.ModusMap);
                     if (!mSpinnerInit) {
-//                        mUseTimeZoneDb = true;
                         sToMapsOSM();
                     }
                     break;
@@ -291,7 +281,6 @@ public class Main extends AppCompatActivity {
             mSet = "";
             mMoonResource = R.drawable.moon_00;
             mName = "";
-//            mUseTimeZoneDb = false;
             sCheckPermissions();
         } else {
             mSelection = savedInstanceState.getInt("Selection");
@@ -311,7 +300,6 @@ public class Main extends AppCompatActivity {
             mYear = savedInstanceState.getInt("Year");
             mName = savedInstanceState.getString("Name");
             mTimeZoneId = savedInstanceState.getString("TimeZoneId");
-//            mUseTimeZoneDb = savedInstanceState.getBoolean("UseTimeZoneDb");
 
             lDate = LocalDate.of(mYear, mMonth, mDay);
         }
@@ -350,7 +338,6 @@ public class Main extends AppCompatActivity {
         savedInstanceState.putInt("Year", mYear);
         savedInstanceState.putString("Name", mName);
         savedInstanceState.putString("TimeZoneId", mTimeZoneId);
-//        savedInstanceState.putBoolean("UseTimeZoneDb", mUseTimeZoneDb);
     }
 
     @Override
@@ -437,17 +424,6 @@ public class Main extends AppCompatActivity {
             finish();
         }
     }
-
-/*    @Override
-    public void onBackPressed() {
-        super.onBackPressed();
-        if (mNameEntry) {
-            mNameEntry = false;
-            sSetScreen();
-        } else {
-            finish();
-        }
-    } */
 
     private void sFillSelection() {
         List<Location> lLocations;
@@ -596,7 +572,7 @@ public class Main extends AppCompatActivity {
         }
     }
 
-    private void sDB_menu(){
+    protected void sDB_menu(){
         Intent lInt;
 
         lInt = new Intent();
@@ -604,7 +580,7 @@ public class Main extends AppCompatActivity {
         startActivity(lInt);
     }
 
-    private void sSun_Click() {
+    protected void sSun_Click() {
         if (mAppData.xDisplay() != AppData.DisplaySun) {
             mAppData.xDisplay(AppData.DisplaySun);
             sFillBackground();
@@ -613,7 +589,7 @@ public class Main extends AppCompatActivity {
         }
     }
 
-    private void sMoon_Click() {
+    protected void sMoon_Click() {
         if (mAppData.xDisplay() != AppData.DisplayMoon) {
             mAppData.xDisplay(AppData.DisplayMoon);
             sRiseSet();
@@ -729,20 +705,20 @@ public class Main extends AppCompatActivity {
                     // on below line we are setting a click listener
                     // for our positive button
                     case DialogInterface.BUTTON_POSITIVE:
-                            fLocation.xLongitude(mLocation.longitude);
-                            fLocation.xLattitude(mLocation.latitude);
-                            fLocation.xZone(mTimeZoneId);
-                            bResult = mData.xModifyLocation(fLocation);
-                            if (bResult == Result.cResultOK) {
-                                lDialogResult.xResult(Result.cResultOK);
-                                mNameEntry = false;
-                                mAppData.xModus(AppData.ModusStorage);
-                                mAppData.xSelection(pName);
-                                sSetScreen();
-                                sFillSelection();
-                            } else {
-                                lDialogResult.xResult(Result.cResultError);
-                            }
+                        fLocation.xLongitude(mLocation.longitude);
+                        fLocation.xLattitude(mLocation.latitude);
+                        fLocation.xZone(mTimeZoneId);
+                        bResult = mData.xModifyLocation(fLocation);
+                        if (bResult == Result.cResultOK) {
+                            lDialogResult.xResult(Result.cResultOK);
+                            mNameEntry = false;
+                            mAppData.xModus(AppData.ModusStorage);
+                            mAppData.xSelection(pName);
+                            sSetScreen();
+                            sFillSelection();
+                        } else {
+                            lDialogResult.xResult(Result.cResultError);
+                        }
                         break;
                     // on below line we are setting click listener
                     // for our negative button.
@@ -875,8 +851,6 @@ public class Main extends AppCompatActivity {
                     mMoonResource = R.drawable.moon_00;
                     break;
                 case 1:
-                    mMoonResource = R.drawable.moon_02;
-                    break;
                 case 2:
                     mMoonResource = R.drawable.moon_02;
                     break;
@@ -990,14 +964,6 @@ public class Main extends AppCompatActivity {
 
         return lLocalTime;
     }
-
-/*    private void sToMaps() {
-        Intent lInt;
-
-        lInt = new Intent();
-        lInt.setClass(this, LocationMaps.class);
-        startActivity(lInt);
-    } */
 
     private void sToMapsOSM() {
         Intent lInt;

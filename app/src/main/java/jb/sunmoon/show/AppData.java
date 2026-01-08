@@ -9,15 +9,15 @@ import org.threeten.bp.ZonedDateTime;
  * Created by Jan on 26-8-2017.
  */
 
-class AppData {
-    private static AppData mInstance = null;
+public class AppData {
+    private static volatile AppData mInstance = null;
 
     static final int ModusCurrent = 0;
     static final int ModusMap = 1;
     static final int ModusStorage = 2;
 
-    static final int DisplaySun = 0;
-    static final int DisplayMoon = 1;
+    public static final int DisplaySun = 0;
+    public static final int DisplayMoon = 1;
 
     static final int LocationInit = 0;
     static final int LocationLast = 1;
@@ -110,7 +110,7 @@ class AppData {
         mMapZone = pZone;
     }
 
-    int xDisplay(){
+    public int xDisplay(){
         return mDisplay;
     }
 

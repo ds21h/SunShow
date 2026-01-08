@@ -25,8 +25,14 @@ public class OwnSpinner extends androidx.appcompat.widget.AppCompatSpinner {
     @Override
     public void setSelection(int pPosition) {
         super.setSelection(pPosition);
+
+        OnItemSelectedListener lListener;
+
         if (pPosition == getSelectedItemPosition() && mPreviousPos == pPosition) {
-            getOnItemSelectedListener().onItemSelected(null, null, pPosition, 0);
+            lListener = getOnItemSelectedListener();
+            if (lListener != null){
+                lListener.onItemSelected(null, null, pPosition, 0);
+            }
         }
         mPreviousPos = pPosition;
     }}

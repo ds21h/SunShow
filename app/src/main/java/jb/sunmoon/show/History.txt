@@ -41,4 +41,4 @@ Version 1.4 - 29-12-2025
 Version 1.5 - 05-01-2026
 - Upgraded to API 36
 - The deprecated <Bundle>.getParcellable calls are surrounded with version test limiting their use up to and including API 33
-- Google maps interface deleted. Only OSM maps are avilable.
+- Google maps interface deleted. Only OSM maps are available.

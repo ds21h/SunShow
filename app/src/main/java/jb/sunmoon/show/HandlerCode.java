@@ -2,18 +2,18 @@ package jb.sunmoon.show;
 
 import android.content.Context;
 
-class HandlerCode {
+public class HandlerCode {
     //  Runnable ID
     static final int cTimeZone = 0x0100;
 
     //  Process code
-    static final int cRequestOK = 0x01;
-    static final int cCommunicationOK = 0x02;
-    static final int cProcessOK = 0x04;
+    public static final int cRequestOK = 0x01;
+    public static final int cCommunicationOK = 0x02;
+    public static final int cProcessOK = 0x04;
 
-    private HandlerCode(){}
+    public HandlerCode(){}
 
-    static String xCheckCode(Context pContext, int pWhat){
+    public static String xCheckCode(Context pContext, int pWhat){
         String lResult;
 
         if ((pWhat & HandlerCode.cRequestOK) != 0) {
