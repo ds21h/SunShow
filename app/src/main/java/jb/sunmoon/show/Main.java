@@ -307,7 +307,7 @@ public class Main extends AppCompatActivity {
         sFillBackground();
 
         mAdpSelection = new ArrayAdapter<>(this, R.layout.ownspinner_item);
-        mAdpSelection.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        mAdpSelection.setDropDownViewResource(R.layout.ownspinner_dropdown_item);
         mSpSelection.setAdapter(mAdpSelection);
         sFillSelection();
         mSpSelection.setOnItemSelectedListener(mSelectionListener);
